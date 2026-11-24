@@ -3,6 +3,7 @@ import type { JSX } from 'preact'
 import type { FirebaseWebConfig } from 'data-platform/client'
 import { parseConfigText } from './config.ts'
 import { APP_NAME } from '../app-name.ts'
+import { errorMessage } from '../error-message.ts'
 import { Button } from 'household-ui/ui/Button.tsx'
 import { CentredCard } from 'household-ui/ui/CentredCard.tsx'
 import { TextArea } from 'household-ui/ui/TextArea.tsx'
@@ -24,7 +25,7 @@ export function SetupScreen({ onConfigured, initialError }: SetupScreenProps) {
       onConfigured(parseConfigText(text))
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Invalid Firebase config.')
+      setError(errorMessage(err, 'Invalid Firebase config.'))
     }
   }
 
