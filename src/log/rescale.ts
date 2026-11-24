@@ -1,5 +1,7 @@
 import { nutrition as platformNutrition } from 'data-platform'
 
+import type { Servings } from './servings.ts'
+
 const { grams, kcal } = platformNutrition
 
 /**
@@ -8,8 +10,8 @@ const { grams, kcal } = platformNutrition
  */
 export function rescaleNutrition(
   totals: platformNutrition.Nutrition,
-  oldServings: number,
-  newServings: number,
+  oldServings: Servings,
+  newServings: Servings,
 ): platformNutrition.Nutrition {
   const scale = (value: number) => (value / oldServings) * newServings
   return {

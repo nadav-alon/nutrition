@@ -1,4 +1,5 @@
 import type { nutrition } from 'data-platform'
+import type { Servings } from './servings.ts'
 
 /** A Log Entry as the app reads it. `nutrition` is the totals for all `servings`, a snapshot taken when it was logged. */
 export interface LogEntry {
@@ -6,7 +7,7 @@ export interface LogEntry {
   readonly name: string
   readonly source: nutrition.LogEntrySource
   readonly nutrition: nutrition.Nutrition
-  readonly servings: number
+  readonly servings: Servings
   readonly mealType: nutrition.MealType
   readonly eatenAt: Date
 }

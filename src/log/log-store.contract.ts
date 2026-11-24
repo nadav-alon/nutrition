@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nutrition } from 'data-platform'
 import type { LogEntry, LogStore, NewLogEntry } from './log-store.ts'
+import { servings, type Servings } from './servings.ts'
 
 const { grams, kcal } = nutrition
 
@@ -8,7 +9,7 @@ export const schnitzel: NewLogEntry = {
   name: 'Schnitzel plate',
   source: { kind: 'food', foodId: nutrition.foodId('schnitzel') },
   nutrition: { kcal: kcal(650), proteinG: grams(30), carbsG: grams(70), fatG: grams(25) },
-  servings: 1.5,
+  servings: servings(1.5),
   mealType: 'lunch',
   eatenAt: new Date('2026-03-10T12:30:00Z'),
 }
@@ -17,7 +18,7 @@ export const quickToast: NewLogEntry = {
   name: 'Toast',
   source: { kind: 'quick' },
   nutrition: { kcal: kcal(180), proteinG: grams(6), carbsG: grams(30), fatG: grams(3) },
-  servings: 1,
+  servings: servings(1),
   mealType: 'breakfast',
   eatenAt: new Date('2026-03-10T07:00:00Z'),
 }
@@ -142,7 +143,7 @@ export function logStoreContract(name: string, makeStore: () => Promise<LogStore
 
       it('rescales the totals from the entry itself when servings change', async () => {
         const id = await store.create(schnitzel)
-        await store.update(id, { servings: 3 })
+        await store.update(id, { servings: servings(3) })
         const entry = await entryNamed('Schnitzel plate')
         expect(entry.servings).toBe(3)
         expect(entry.nutrition).toEqual({ kcal: 1300, proteinG: 60, carbsG: 140, fatG: 50 })
@@ -150,8 +151,8 @@ export function logStoreContract(name: string, makeStore: () => Promise<LogStore
 
       it('rescales from the last snapshot, not the original Food', async () => {
         const id = await store.create(schnitzel)
-        await store.update(id, { servings: 3 })
-        await store.update(id, { servings: 0.75 })
+        await store.update(id, { servings: servings(3) })
+        await store.update(id, { servings: servings(0.75) })
         const entry = await entryNamed('Schnitzel plate')
         expect(entry.nutrition).toEqual({ kcal: 325, proteinG: 15, carbsG: 35, fatG: 12.5 })
       })
@@ -164,16 +165,16 @@ export function logStoreContract(name: string, makeStore: () => Promise<LogStore
 
       it('rejects servings that are not positive', async () => {
         const id = await store.create(schnitzel)
-        await expect(store.update(id, { servings: 0 })).rejects.toThrow()
-        await expect(store.update(id, { servings: -1 })).rejects.toThrow()
+        await expect(store.update(id, { servings: 0 as number as Servings })).rejects.toThrow()
+        await expect(store.update(id, { servings: -1 as number as Servings })).rejects.toThrow()
         expect((await entryNamed('Schnitzel plate')).servings).toBe(1.5)
       })
 
       it('rejects an entry that is deleted or does not exist', async () => {
         const id = await store.create(schnitzel)
         await store.softDelete(id)
-        await expect(store.update(id, { servings: 2 })).rejects.toThrow()
-        await expect(store.update(nutrition.logEntryId('missing'), { servings: 2 })).rejects.toThrow()
+        await expect(store.update(id, { servings: servings(2) })).rejects.toThrow()
+        await expect(store.update(nutrition.logEntryId('missing'), { servings: servings(2) })).rejects.toThrow()
       })
     })
 

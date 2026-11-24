@@ -19,6 +19,7 @@ import {
 import type { core } from 'data-platform'
 import { nutrition } from 'data-platform'
 import { applyEdit } from './apply-edit.ts'
+import { servings } from './servings.ts'
 import type { LogEntry, LogStore, NewLogEntry } from './log-store.ts'
 
 /** The Firestore adapter for `LogStore`: `nutritionLogs/{uid}/entries`, one document per Log Entry. */
@@ -94,7 +95,7 @@ function toLogEntry(snapshot: QueryDocumentSnapshot): LogEntry {
     name: data.name,
     source: data.source,
     nutrition: data.nutrition,
-    servings: data.servings,
+    servings: servings(data.servings),
     mealType: data.mealType,
     eatenAt: eatenAt instanceof Date ? eatenAt : new Timestamp(eatenAt.seconds, eatenAt.nanoseconds).toDate(),
   }
