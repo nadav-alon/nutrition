@@ -7,7 +7,7 @@ import ChevronLeft from '~icons/material-symbols/chevron-left'
 import ChevronRight from '~icons/material-symbols/chevron-right'
 import { dayEnd, dayOf, dayStart, nextDay, previousDay, type Day } from '../day.ts'
 import type { LogEntry, LogStore } from '../log/log-store.ts'
-import type { TargetsPort } from '../targets/targets-port.ts'
+import type { Targets, TargetsPort } from '../targets/targets-port.ts'
 
 export interface DayScreenProps {
   log: LogStore
@@ -27,11 +27,50 @@ const MEAL_TYPE_LABELS: Record<nutrition.MealType, string> = {
   snack: 'Snack',
 }
 
+interface Bar {
+  label: string
+  unit: string
+  eaten: number
+  target: number | undefined
+}
+
+function MacroBar({ label, unit, eaten, target }: Bar) {
+  const over = target !== undefined && eaten > target
+  const text =
+    target === undefined
+      ? `${eaten} ${unit} eaten`
+      : over
+        ? `${eaten} ${unit} eaten · ${eaten - target} ${unit} over`
+        : `${eaten} ${unit} eaten · ${target - eaten} ${unit} left`
+  return (
+    <div
+      class={over ? 'macro-bar over' : 'macro-bar'}
+      role="meter"
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuenow={eaten}
+      aria-valuemax={target}
+    >
+      <span>{text}</span>
+      {target === undefined ? null : (
+        <progress aria-hidden="true" max={target} value={Math.min(eaten, target)} />
+      )}
+    </div>
+  )
+}
+
 /** One Day's Log Entries against the Member's Targets; today by default, stepping to earlier Days. */
-export function DayScreen({ log, now, onOpenEntry, onLog }: DayScreenProps) {
+export function DayScreen({ log, targets, now, onOpenEntry, onLog }: DayScreenProps) {
   const today = dayOf(now)
   const [viewed, setViewed] = useState<Day>(today)
   const [entries, setEntries] = useState<readonly LogEntry[]>([])
+  const [memberTargets, setMemberTargets] = useState<Targets | null>(null)
+  const [targetsFailed, setTargetsFailed] = useState(false)
+  useEffect(() => {
+    return targets.subscribe(setMemberTargets, () => setTargetsFailed(true))
+  }, [targets])
+  const total = (pick: (n: nutrition.Nutrition) => number) =>
+    entries.reduce((sum, entry) => sum + pick(entry.nutrition), 0)
   useEffect(() => {
     setEntries([])
     return log.watchDay(dayStart(viewed), dayEnd(viewed), setEntries)
@@ -48,6 +87,13 @@ export function DayScreen({ log, now, onOpenEntry, onLog }: DayScreenProps) {
           onClick={() => setViewed(nextDay(viewed, now))}
         />
       </header>
+      {targetsFailed ? <p>Targets unavailable.</p> : null}
+      <div class="macro-bars">
+        <MacroBar label="Calories" unit="kcal" eaten={total((n) => n.kcal)} target={memberTargets?.kcal} />
+        <MacroBar label="Protein" unit="g" eaten={total((n) => n.proteinG)} target={memberTargets?.proteinG} />
+        <MacroBar label="Carbs" unit="g" eaten={total((n) => n.carbsG)} target={memberTargets?.carbsG} />
+        <MacroBar label="Fat" unit="g" eaten={total((n) => n.fatG)} target={memberTargets?.fatG} />
+      </div>
       {entries.length === 0 ? (
         <p>Nothing logged this day.</p>
       ) : (

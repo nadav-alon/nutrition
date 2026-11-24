@@ -30,3 +30,22 @@ main.screen.sign-in {
 main.screen.sign-in .ui-button {
   min-height: 3rem;
 }
+
+/* The Day screen's macro bars: eaten against Target, turning to the error colour when over. */
+.macro-bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--md-sys-spacing-1);
+}
+
+.macro-bar progress {
+  width: 100%;
+}
+
+.macro-bar.over {
+  color: var(--md-sys-color-error);
+}
+
+.macro-bar.over progress {
+  accent-color: var(--md-sys-color-error);
+}

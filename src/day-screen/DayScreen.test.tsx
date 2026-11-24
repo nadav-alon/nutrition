@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/preact'
 import { describe, expect, it, vi } from 'vitest'
 import { nutrition } from 'data-platform'
+import type { TargetsPort } from '../targets/targets-port.ts'
 import { servings } from '../log/servings.ts'
 import type { NewLogEntry } from '../log/log-store.ts'
 import { fakeLogStore } from '../log/fake-log-store.ts'
@@ -103,5 +104,64 @@ describe('DayScreen Log action', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
     fireEvent.click(screen.getByRole('button', { name: 'Log' }))
     expect(onLog).toHaveBeenLastCalledWith('2026-03-09')
+  })
+})
+
+describe('DayScreen targets', () => {
+  const bar = (name: string) => screen.getByRole('meter', { name })
+
+  it('shows eaten and remaining against each Target', async () => {
+    const log = fakeLogStore()
+    await log.create(entry('Toast', 'breakfast', 8, 400))
+    await log.create(entry('Rice', 'lunch', 12, 600))
+    const targets = fakeTargetsPort()
+    await targets.write({ kcal: kcal(2000), proteinG: grams(50), carbsG: grams(100), fatG: grams(20) })
+    renderScreen({ log, targets })
+    expect(bar('Calories')).toHaveAttribute('aria-valuenow', '1000')
+    expect(bar('Calories')).toHaveAttribute('aria-valuemax', '2000')
+    expect(within(bar('Calories')).getByText('1000 kcal eaten · 1000 kcal left')).toBeInTheDocument()
+    expect(within(bar('Protein')).getByText('20 g eaten · 30 g left')).toBeInTheDocument()
+    expect(within(bar('Carbs')).getByText('40 g eaten · 60 g left')).toBeInTheDocument()
+    expect(within(bar('Fat')).getByText('10 g eaten · 10 g left')).toBeInTheDocument()
+  })
+
+  it('shows only the total for a macro with no Target', async () => {
+    const log = fakeLogStore()
+    await log.create(entry('Toast', 'breakfast', 8, 400))
+    const targets = fakeTargetsPort()
+    await targets.write({ kcal: kcal(2000) })
+    renderScreen({ log, targets })
+    expect(within(bar('Protein')).getByText('10 g eaten')).toBeInTheDocument()
+    expect(bar('Protein')).not.toHaveAttribute('aria-valuemax')
+  })
+
+  it('shows totals only when the Member has no Targets', async () => {
+    const log = fakeLogStore()
+    await log.create(entry('Toast', 'breakfast', 8, 400))
+    renderScreen({ log })
+    expect(within(bar('Calories')).getByText('400 kcal eaten')).toBeInTheDocument()
+  })
+
+  it('shows an over-target macro as over', async () => {
+    const log = fakeLogStore()
+    await log.create(entry('Feast', 'dinner', 19, 2500))
+    const targets = fakeTargetsPort()
+    await targets.write({ kcal: kcal(2000) })
+    renderScreen({ log, targets })
+    expect(within(bar('Calories')).getByText('2500 kcal eaten · 500 kcal over')).toBeInTheDocument()
+    expect(bar('Calories')).toHaveClass('over')
+    expect(bar('Protein')).not.toHaveClass('over')
+  })
+
+  it('says so when the Targets cannot be read', () => {
+    const targets: TargetsPort = {
+      subscribe: (_onChange, onError) => {
+        onError(new Error('offline'))
+        return () => {}
+      },
+      write: async () => {},
+    }
+    renderScreen({ targets })
+    expect(screen.getByText('Targets unavailable.')).toBeInTheDocument()
   })
 })
