@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { nutrition } from 'data-platform'
 import type { Targets, TargetsPort } from './targets-port.ts'
 
+const DELIVERY_POLL_MS = 10
+const DELIVERY_TIMEOUT_MS = 2000
+
 /** Collects what a port's subscription delivers, and waits for the next delivery. */
 function watch(port: TargetsPort) {
   const seen: (Targets | null)[] = []
@@ -12,7 +15,9 @@ function watch(port: TargetsPort) {
     errors,
     stop,
     async until(count: number) {
-      for (let i = 0; i < 200 && seen.length < count; i++) await new Promise((r) => setTimeout(r, 10))
+      for (let waited = 0; waited < DELIVERY_TIMEOUT_MS && seen.length < count; waited += DELIVERY_POLL_MS) {
+        await new Promise((r) => setTimeout(r, DELIVERY_POLL_MS))
+      }
       expect(seen.length).toBeGreaterThanOrEqual(count)
     },
   }
