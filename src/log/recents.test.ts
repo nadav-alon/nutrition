@@ -6,6 +6,8 @@ import type { LogEntry } from './log-store.ts'
 
 const { kcal, grams, foodId, logEntryId } = nutrition
 
+const live: ReadonlySet<nutrition.FoodId> = new Set(['a', 'b'].map(foodId))
+
 let next = 0
 function entry(name: string, source: LogEntry['source']): LogEntry {
   return {
@@ -23,22 +25,44 @@ const quick = (name: string) => entry(name, { kind: 'quick' })
 
 describe('recents', () => {
   it('identifies a Food entry by its Food, keeping the newest occurrence, newest first', () => {
-    const result = recents([food('Schnitzel (new)', 'a'), food('Soup', 'b'), food('Schnitzel (old)', 'a')])
+    const result = recents([food('Schnitzel (new)', 'a'), food('Soup', 'b'), food('Schnitzel (old)', 'a')], live)
     expect(result.map((r) => r.name)).toEqual(['Schnitzel (new)', 'Soup'])
   })
 
   it('identifies a Quick Entry by its name, ignoring case and surrounding whitespace', () => {
-    const result = recents([quick('Cake'), quick('  cake '), quick('Tea'), quick('CAKE')])
+    const result = recents([quick('Cake'), quick('  cake '), quick('Tea'), quick('CAKE')], live)
     expect(result.map((r) => r.name)).toEqual(['Cake', 'Tea'])
   })
 
   it('does not merge a Food entry with a Quick Entry of the same name', () => {
-    expect(recents([food('Cake', 'a'), quick('Cake')])).toHaveLength(2)
+    expect(recents([food('Cake', 'a'), quick('Cake')], live)).toHaveLength(2)
   })
 
   it('keeps at most 10, the newest', () => {
-    const result = recents(Array.from({ length: 12 }, (_, i) => quick(`Thing ${i}`)))
+    const result = recents(Array.from({ length: 12 }, (_, i) => quick(`Thing ${i}`)), live)
     expect(result).toHaveLength(10)
     expect(result[9]?.name).toBe('Thing 9')
+  })
+
+  it('drops a Food entry whose Food is no longer live, before applying the limit', () => {
+    const dead = food('Gone', 'z')
+    expect(recents([dead, food('Soup', 'b')], live).map((r) => r.name)).toEqual(['Soup'])
+    const many = [dead, ...Array.from({ length: 10 }, (_, i) => quick(`Thing ${i}`))]
+    expect(recents(many, live)).toHaveLength(10)
+  })
+
+  it('gives a Quick Entry the name and per-Serving Nutrition of its newest occurrence', () => {
+    const newest: LogEntry = {
+      ...quick('Cake'),
+      servings: servings(2),
+      nutrition: { kcal: kcal(500), proteinG: grams(10), carbsG: grams(60), fatG: grams(20) },
+    }
+    expect(recents([newest, quick('cake')], live)).toEqual([
+      {
+        kind: 'quick',
+        name: 'Cake',
+        perServing: { kcal: 250, proteinG: 5, carbsG: 30, fatG: 10 },
+      },
+    ])
   })
 })
