@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
-import type { TargetsPort } from './targets-port.ts'
+import { nutrition } from 'data-platform'
+import type { Targets, TargetsPort } from './targets-port.ts'
 import { Button } from 'household-ui/ui/Button.tsx'
 import { TextField } from 'household-ui/ui/TextField.tsx'
 
@@ -29,6 +30,20 @@ function validate(draft: Draft): Errors {
   return errors
 }
 
+/** The Targets a validated draft stands for: an empty field is left out, so it is unset. */
+function toTargets(draft: Draft): Targets {
+  const targets: Targets = {}
+  const kcal = draft.kcal.trim()
+  const proteinG = draft.proteinG.trim()
+  const carbsG = draft.carbsG.trim()
+  const fatG = draft.fatG.trim()
+  if (kcal !== '') targets.kcal = nutrition.kcal(Number(kcal))
+  if (proteinG !== '') targets.proteinG = nutrition.grams(Number(proteinG))
+  if (carbsG !== '') targets.carbsG = nutrition.grams(Number(carbsG))
+  if (fatG !== '') targets.fatG = nutrition.grams(Number(fatG))
+  return targets
+}
+
 export type TargetsScreenProps = {
   port: TargetsPort
 }
@@ -37,6 +52,7 @@ export type TargetsScreenProps = {
 export function TargetsScreen({ port }: TargetsScreenProps) {
   const [draft, setDraft] = useState<Draft | null>(null)
   const [errors, setErrors] = useState<Errors>({})
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -54,9 +70,17 @@ export function TargetsScreen({ port }: TargetsScreenProps) {
   if (loadError !== null) return <main class="screen targets" role="alert">{loadError}</main>
   if (draft === null) return <main class="screen targets" />
 
-  function handleSubmit(event: JSX.TargetedEvent<HTMLFormElement>) {
+  async function handleSubmit(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
-    setErrors(validate(draft!))
+    const found = validate(draft!)
+    setErrors(found)
+    if (Object.keys(found).length > 0) return
+    setSaveError(null)
+    try {
+      await port.write(toTargets(draft!))
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Could not save your Targets.')
+    }
   }
 
   return (
@@ -73,6 +97,7 @@ export function TargetsScreen({ port }: TargetsScreenProps) {
             onInput={(event) => setDraft({ ...draft, [key]: event.currentTarget.value })}
           />
         ))}
+        {saveError !== null && <p role="alert">{saveError}</p>}
         <Button type="submit" variant="filled">
           Save
         </Button>
