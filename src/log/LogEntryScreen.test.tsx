@@ -98,3 +98,39 @@ describe('LogEntryScreen delete', () => {
     confirm.mockRestore()
   })
 })
+
+describe('LogEntryScreen leaving', () => {
+  it('leaves at once when nothing changed', async () => {
+    const { onDone } = await setup()
+    const confirm = vi.spyOn(window, 'confirm')
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(confirm).not.toHaveBeenCalled()
+    expect(onDone).toHaveBeenCalled()
+    confirm.mockRestore()
+  })
+
+  it('asks before leaving with unsaved changes, and stays when the Member declines', async () => {
+    const { onDone } = await setup()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    fireEvent.input(screen.getByLabelText('Servings'), { target: { value: '2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(confirm).toHaveBeenCalled()
+    expect(onDone).not.toHaveBeenCalled()
+    confirm.mockReturnValue(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(onDone).toHaveBeenCalled()
+    confirm.mockRestore()
+  })
+
+  it('warns on page unload only while there are unsaved changes', async () => {
+    await setup()
+    const unload = () => {
+      const event = new Event('beforeunload', { cancelable: true })
+      window.dispatchEvent(event)
+      return event.defaultPrevented
+    }
+    expect(unload()).toBe(false)
+    fireEvent.input(screen.getByLabelText('Servings'), { target: { value: '2' } })
+    await waitFor(() => expect(unload()).toBe(true))
+  })
+})

@@ -7,6 +7,7 @@ import { TextField } from 'household-ui/ui/TextField.tsx'
 import type { LogEntry, LogEntryEdit, LogStore } from './log-store.ts'
 import { fromLocalInput, toLocalInput } from './local-datetime.ts'
 import { isServings, servings as toServings } from './servings.ts'
+import { useLeaveGuard } from './use-leave-guard.ts'
 
 export interface LogEntryScreenProps {
   store: LogStore
@@ -32,6 +33,7 @@ export function LogEntryScreen({ store, entry, onDone }: LogEntryScreenProps) {
     ...(parsedEatenAt && parsedEatenAt.getTime() !== entry.eatenAt.getTime() && { eatenAt: parsedEatenAt }),
   }
   const canSave = servingsValid && parsedEatenAt !== undefined && Object.keys(edit).length > 0
+  const { confirmLeave } = useLeaveGuard(Object.keys(edit).length > 0)
 
   async function handleSubmit(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -57,6 +59,9 @@ export function LogEntryScreen({ store, entry, onDone }: LogEntryScreenProps) {
   const { kcal, proteinG, carbsG, fatG } = entry.nutrition
   return (
     <main class="screen log-entry">
+      <Button variant="text" onClick={() => confirmLeave() && onDone()}>
+        Back
+      </Button>
       <h2>{entry.name}</h2>
       <dl class="totals">
         <dt>Calories</dt>
