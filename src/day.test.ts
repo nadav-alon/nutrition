@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { day, dayOf, isDay } from './day.ts'
+import { day, dayEnd, dayOf, dayStart, isDay } from './day.ts'
+
+process.env.TZ = 'America/New_York'
 
 describe('Day', () => {
   it('accepts a real calendar date and refuses anything else', () => {
@@ -20,6 +22,31 @@ describe('Day', () => {
 
   it('puts an instant exactly at midnight in the Day it starts', () => {
     expect(dayOf(new Date(2026, 5, 16, 0, 0, 0, 0))).toBe('2026-06-16')
-    expect(dayOf(new Date(2026, 5, 16, 0, 0, 0, 0) satisfies Date)).not.toBe('2026-06-15')
+    expect(dayOf(new Date(2026, 5, 15, 23, 59, 59, 999))).toBe('2026-06-15')
+  })
+})
+
+describe('Day range', () => {
+  it('runs from local midnight to the next local midnight', () => {
+    expect(dayStart(day('2026-06-15'))).toEqual(new Date(2026, 5, 15))
+    expect(dayEnd(day('2026-06-15'))).toEqual(new Date(2026, 5, 16))
+  })
+
+  it('includes an instant exactly at midnight in the Day it starts, not the one it ends', () => {
+    const midnight = new Date(2026, 5, 16)
+    expect(dayStart(day('2026-06-16')).getTime()).toBe(midnight.getTime())
+    expect(dayEnd(day('2026-06-15')).getTime()).toBe(midnight.getTime())
+  })
+
+  it('is 23 hours long on the spring-forward day and 25 on the fall-back day', () => {
+    const hours = (d: string) =>
+      (dayEnd(day(d)).getTime() - dayStart(day(d)).getTime()) / 3_600_000
+    expect(hours('2026-03-08')).toBe(23)
+    expect(hours('2026-11-01')).toBe(25)
+    expect(hours('2026-06-15')).toBe(24)
+  })
+
+  it('ends a year on the first of the next', () => {
+    expect(dayEnd(day('2026-12-31'))).toEqual(new Date(2027, 0, 1))
   })
 })

@@ -37,3 +37,19 @@ function format(year: number, month: number, date: number): Day {
 export function dayOf(instant: Date): Day {
   return format(instant.getFullYear(), instant.getMonth() + 1, instant.getDate())
 }
+
+function startOf(value: Day): Date {
+  const { year, month, date } = parts(value)!
+  return new Date(year, month - 1, date)
+}
+
+/** The instant a Day starts: local midnight. Inclusive bound for querying Log Entries. */
+export function dayStart(value: Day): Date {
+  return startOf(value)
+}
+
+/** The instant the Day after `value` starts. Exclusive bound for querying Log Entries. */
+export function dayEnd(value: Day): Date {
+  const { year, month, date } = parts(value)!
+  return new Date(year, month - 1, date + 1)
+}
