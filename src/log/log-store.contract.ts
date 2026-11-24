@@ -125,6 +125,58 @@ export function logStoreContract(name: string, makeStore: () => Promise<LogStore
       })
     })
 
+    describe('updating', () => {
+      const entryNamed = async (name: string) => {
+        const day = watchDay(store)
+        await day.names([name])
+        day.unsubscribe()
+        return day.latest()![0]!
+      }
+
+      it('changes the Meal Type and eaten time, leaving the rest as it was', async () => {
+        const id = await store.create(schnitzel)
+        const eatenAt = new Date('2026-03-10T19:15:00Z')
+        await store.update(id, { mealType: 'dinner', eatenAt })
+        expect(await entryNamed('Schnitzel plate')).toEqual({ ...schnitzel, id, mealType: 'dinner', eatenAt })
+      })
+
+      it('rescales the totals from the entry itself when servings change', async () => {
+        const id = await store.create(schnitzel)
+        await store.update(id, { servings: 3 })
+        const entry = await entryNamed('Schnitzel plate')
+        expect(entry.servings).toBe(3)
+        expect(entry.nutrition).toEqual({ kcal: 1300, proteinG: 60, carbsG: 140, fatG: 50 })
+      })
+
+      it('rescales from the last snapshot, not the original Food', async () => {
+        const id = await store.create(schnitzel)
+        await store.update(id, { servings: 3 })
+        await store.update(id, { servings: 0.75 })
+        const entry = await entryNamed('Schnitzel plate')
+        expect(entry.nutrition).toEqual({ kcal: 325, proteinG: 15, carbsG: 35, fatG: 12.5 })
+      })
+
+      it('keeps the totals when only the Meal Type changes', async () => {
+        const id = await store.create(schnitzel)
+        await store.update(id, { mealType: 'snack' })
+        expect((await entryNamed('Schnitzel plate')).nutrition).toEqual(schnitzel.nutrition)
+      })
+
+      it('rejects servings that are not positive', async () => {
+        const id = await store.create(schnitzel)
+        await expect(store.update(id, { servings: 0 })).rejects.toThrow()
+        await expect(store.update(id, { servings: -1 })).rejects.toThrow()
+        expect((await entryNamed('Schnitzel plate')).servings).toBe(1.5)
+      })
+
+      it('rejects an entry that is deleted or does not exist', async () => {
+        const id = await store.create(schnitzel)
+        await store.softDelete(id)
+        await expect(store.update(id, { servings: 2 })).rejects.toThrow()
+        await expect(store.update(nutrition.logEntryId('missing'), { servings: 2 })).rejects.toThrow()
+      })
+    })
+
     describe('soft deleting', () => {
       it('removes the entry from its Day, and leaves the others', async () => {
         const id = await store.create(schnitzel)

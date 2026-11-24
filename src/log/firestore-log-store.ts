@@ -18,6 +18,7 @@ import {
 } from 'firebase/firestore'
 import type { core } from 'data-platform'
 import { nutrition } from 'data-platform'
+import { applyEdit } from './apply-edit.ts'
 import type { LogEntryRecord, LogStore, NewLogEntry } from './log-store.ts'
 
 /** The Firestore adapter for `LogStore`: `nutritionLogs/{uid}/entries`, one document per Log Entry. */
@@ -49,6 +50,21 @@ export function firestoreLogStore(db: Firestore, uid: core.Uid): LogStore {
     async create(entry: NewLogEntry) {
       const created = await addDoc(entries, toDocument(entry))
       return nutrition.logEntryId(created.id)
+    },
+    async update(id, edit) {
+      const ref = doc(entries, id)
+      await runTransaction(db, async (transaction) => {
+        const snapshot = await transaction.get(ref)
+        if (!snapshot.exists() || !isLive(snapshot.data())) throw new Error(`No live Log Entry ${id}`)
+        const current = toRecord(snapshot)
+        const edited = applyEdit(current, edit)
+        transaction.update(ref, {
+          servings: edited.servings,
+          mealType: edited.mealType,
+          eatenAt: Timestamp.fromDate(edited.eatenAt),
+          nutrition: edited.nutrition,
+        })
+      })
     },
     async softDelete(id) {
       const ref = doc(entries, id)

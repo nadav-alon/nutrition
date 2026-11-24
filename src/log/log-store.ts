@@ -36,6 +36,12 @@ export interface LogStore {
   /** The most recent live entries across Days, newest first, at most `limit`; it feeds Recents. */
   recent(limit: number): Promise<readonly LogEntryRecord[]>
   create(entry: NewLogEntry): Promise<nutrition.LogEntryId>
+  /**
+   * Changes servings, Meal Type and eaten time, and nothing else. Changing servings rescales the
+   * Nutrition totals from the entry's own snapshot, never from the Food. Rejects for an entry that
+   * does not exist or is deleted.
+   */
+  update(id: nutrition.LogEntryId, edit: LogEntryEdit): Promise<void>
   /** Soft deletes an entry; it is never returned again. Deleting one already deleted is a no-op. */
   softDelete(id: nutrition.LogEntryId): Promise<void>
 }

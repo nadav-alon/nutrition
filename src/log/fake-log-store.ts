@@ -1,4 +1,5 @@
 import { nutrition } from 'data-platform'
+import { applyEdit } from './apply-edit.ts'
 import type { LogEntryRecord, LogStore, NewLogEntry, Unsubscribe } from './log-store.ts'
 
 interface Watcher {
@@ -41,6 +42,12 @@ export function fakeLogStore(): LogStore {
       entries.set(id, { ...entry, id })
       notify()
       return id
+    },
+    async update(id, edit) {
+      const entry = entries.get(id)
+      if (!entry || deleted.has(id)) throw new Error(`No live Log Entry ${id}`)
+      entries.set(id, applyEdit(entry, edit))
+      notify()
     },
     async softDelete(id) {
       deleted.add(id)
