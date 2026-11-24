@@ -37,3 +37,17 @@ describe('favicon', () => {
     expect(href).toBe(manifest.icons!.find((i) => i.sizes === '192x192' && !i.purpose)!.src)
   })
 })
+
+describe('deploy workflow', () => {
+  const workflow = readFileSync('.github/workflows/deploy.yml', 'utf8')
+
+  it('publishes to GitHub Pages on push to main', () => {
+    expect(workflow).toMatch(/on:\s*\n\s+push:\s*\n\s+branches: \[main\]/)
+    expect(workflow).toContain('actions/deploy-pages')
+  })
+
+  it('uploads the build output the Vite config serves under /nutrition/', () => {
+    expect(workflow).toContain('npm run build')
+    expect(workflow).toMatch(/path: dist\b/)
+  })
+})
