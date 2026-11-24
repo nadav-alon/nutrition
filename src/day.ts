@@ -67,3 +67,21 @@ export function nextDay(value: Day, now: Date): Day {
   if (value >= today) return today
   return dayOf(dayEnd(value))
 }
+
+/**
+ * The eaten time to offer when logging on `value`: `now` when the Day is today, otherwise that Day
+ * at the current clock time. A clock time the Day skips (a DST gap) lands just after the gap.
+ */
+export function defaultEatenTime(value: Day, now: Date): Date {
+  if (value === dayOf(now)) return new Date(now)
+  const { year, month, date } = parts(value)!
+  return new Date(
+    year,
+    month - 1,
+    date,
+    now.getHours(),
+    now.getMinutes(),
+    now.getSeconds(),
+    now.getMilliseconds(),
+  )
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { day, dayEnd, dayOf, dayStart, isDay, nextDay, previousDay } from './day.ts'
+import { day, dayEnd, defaultEatenTime, dayOf, dayStart, isDay, nextDay, previousDay } from './day.ts'
 
 process.env.TZ = 'America/New_York'
 
@@ -76,5 +76,34 @@ describe('Day stepping', () => {
   it('treats the instant exactly at midnight as the new today', () => {
     const midnight = new Date(2026, 5, 16)
     expect(nextDay(day('2026-06-15'), midnight)).toBe('2026-06-16')
+  })
+})
+
+describe('default eaten time', () => {
+  const now = new Date(2026, 5, 15, 13, 45, 12, 345)
+
+  it('is now when the Day is today', () => {
+    expect(defaultEatenTime(day('2026-06-15'), now)).toEqual(now)
+  })
+
+  it('is the earlier Day at the current clock time', () => {
+    expect(defaultEatenTime(day('2026-06-10'), now)).toEqual(new Date(2026, 5, 10, 13, 45, 12, 345))
+  })
+
+  it('stays on the Day at the current clock time across a DST change', () => {
+    const eaten = defaultEatenTime(day('2026-03-08'), now)
+    expect(dayOf(eaten)).toBe('2026-03-08')
+    expect(eaten.getHours()).toBe(13)
+  })
+
+  it('stays on the Day when the current clock time is the one a DST gap skips', () => {
+    const gap = new Date(2026, 5, 15, 2, 30)
+    expect(dayOf(defaultEatenTime(day('2026-03-08'), gap))).toBe('2026-03-08')
+  })
+
+  it('is the Day itself at midnight when now is exactly midnight', () => {
+    const midnight = new Date(2026, 5, 16)
+    expect(defaultEatenTime(day('2026-06-15'), midnight)).toEqual(new Date(2026, 5, 15))
+    expect(defaultEatenTime(day('2026-06-16'), midnight)).toEqual(midnight)
   })
 })
