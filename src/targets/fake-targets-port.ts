@@ -1,9 +1,9 @@
-import type { Targets, TargetsPort } from './targets-port.ts'
+import type { Targets, TargetsListener, TargetsPort } from './targets-port.ts'
 
 /** An in-memory `TargetsPort`, starting with no Targets set. */
 export function fakeTargetsPort(): TargetsPort {
   let current: Targets | null = null
-  const listeners = new Set<(targets: Targets | null) => void>()
+  const listeners = new Set<TargetsListener>()
   return {
     subscribe(onChange) {
       listeners.add(onChange)
