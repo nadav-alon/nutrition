@@ -6,6 +6,7 @@ import { emulatorConfig, emulatorKit } from './gate/emulator.ts'
 import { PlatformGuard } from './gate/PlatformGuard.tsx'
 import { SetupScreen } from './gate/SetupScreen.tsx'
 import { App } from './App.tsx'
+import { APP_NAME } from './app-name.ts'
 import { AlertBanner } from 'household-ui/ui/AlertBanner.tsx'
 import { Button } from 'household-ui/ui/Button.tsx'
 import { CentredCard } from 'household-ui/ui/CentredCard.tsx'
@@ -30,7 +31,7 @@ export function Root() {
 
   if (proposed !== null) {
     return (
-      <CentredCard appName="Nutrition" title="Switch Household?">
+      <CentredCard appName={APP_NAME} title="Switch Household?">
         <p>
           This link carries the config of another Firebase project (<code>{proposed.projectId}</code>). Accepting it
           also repoints the Catalogue on this device.

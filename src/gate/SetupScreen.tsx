@@ -2,6 +2,7 @@ import { useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import type { FirebaseWebConfig } from 'data-platform/client'
 import { parseConfigText } from './config.ts'
+import { APP_NAME } from '../app-name.ts'
 import { Button } from 'household-ui/ui/Button.tsx'
 import { CentredCard } from 'household-ui/ui/CentredCard.tsx'
 import { TextArea } from 'household-ui/ui/TextArea.tsx'
@@ -28,7 +29,7 @@ export function SetupScreen({ onConfigured, initialError = null }: SetupScreenPr
   }
 
   return (
-    <CentredCard appName="Nutrition" title="Set up">
+    <CentredCard appName={APP_NAME} title="Set up">
       <p>Paste your Household's Firebase web config, or open a device-transfer link from the Catalogue.</p>
       <form class="stack" onSubmit={handleSubmit}>
         <TextArea

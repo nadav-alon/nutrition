@@ -12,6 +12,7 @@ import { Button } from 'household-ui/ui/Button.tsx'
 import { CentredCard } from 'household-ui/ui/CentredCard.tsx'
 import { MemberContext, SignOutButton } from './account.tsx'
 import { catalogueUrl } from '../catalogue-url.ts'
+import { APP_NAME } from '../app-name.ts'
 
 export type AuthGateProps = {
   client: FirebaseClient
@@ -87,7 +88,7 @@ export function AuthGate({ client, children }: AuthGateProps) {
 
     case 'unclaimed':
       return (
-        <CentredCard appName="Nutrition" title="Household not claimed">
+        <CentredCard appName={APP_NAME} title="Household not claimed">
           <p>No one has claimed this Household yet. Claim it through the Catalogue.</p>
           <CatalogueLink />
           <SignOutButton onClick={signOut} />
@@ -96,7 +97,7 @@ export function AuthGate({ client, children }: AuthGateProps) {
 
     case 'non-member':
       return (
-        <CentredCard appName="Nutrition" title="Not a Member">
+        <CentredCard appName={APP_NAME} title="Not a Member">
           <p>Signed in as {state.user.email}, who is not a Member of this Household.</p>
           <p>Join through the Catalogue, then come back.</p>
           <CatalogueLink />
@@ -106,7 +107,7 @@ export function AuthGate({ client, children }: AuthGateProps) {
 
     case 'unreachable':
       return (
-        <CentredCard appName="Nutrition" title="Couldn't reach your Household">
+        <CentredCard appName={APP_NAME} title="Couldn't reach your Household">
           <p>Check your connection and try again.</p>
           <Button
             variant="filled"
