@@ -16,3 +16,15 @@ describe('rescaleNutrition', () => {
     })
   })
 })
+
+describe('rescaleNutrition with extra fields', () => {
+  it('returns only the four scaled macros, never an extra field at its old-servings value', () => {
+    const totals = { kcal: kcal(100), proteinG: grams(10), carbsG: grams(10), fatG: grams(10), fibreG: 4 }
+    expect(rescaleNutrition(totals, servings(1), servings(2))).toEqual({
+      kcal: 200,
+      proteinG: 20,
+      carbsG: 20,
+      fatG: 20,
+    })
+  })
+})

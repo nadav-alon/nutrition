@@ -15,7 +15,6 @@ export function rescaleNutrition(
 ): platformNutrition.Nutrition {
   const scale = (value: number) => (value / oldServings) * newServings
   return {
-    ...totals,
     kcal: kcal(scale(totals.kcal)),
     proteinG: grams(scale(totals.proteinG)),
     carbsG: grams(scale(totals.carbsG)),
