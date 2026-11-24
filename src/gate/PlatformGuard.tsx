@@ -2,10 +2,12 @@ import { useEffect, useState } from 'preact/hooks'
 import { doc, getDoc, type Firestore } from 'firebase/firestore'
 import { AlertBanner } from 'household-ui/ui/AlertBanner.tsx'
 import { core } from 'data-platform'
+import { url } from '../url.ts'
 
 /** The platform's own setup guide, deployed and versioned with it. */
-export const HOUSEHOLD_SETUP_DOC_URL =
-  'https://github.com/nadav-alon/data-platform/blob/main/docs/household-setup.md'
+export const HOUSEHOLD_SETUP_DOC_URL = url(
+  'https://github.com/nadav-alon/data-platform/blob/main/docs/household-setup.md',
+)
 
 /** The Household's deployed platform version, or `undefined` if none is deployed or it does not parse. */
 async function readDeployedPlatformVersion(db: Firestore): Promise<core.Semver | undefined> {
