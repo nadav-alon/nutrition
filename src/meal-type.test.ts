@@ -12,6 +12,7 @@ describe('guessMealType', () => {
     ['15:59 is lunch', at(15, 59), 'lunch'],
     ['16:00 is dinner', at(16, 0), 'dinner'],
     ['21:30 is dinner', at(21, 30), 'dinner'],
+    ['21:30:59 is dinner', new Date(2026, 10, 24, 21, 30, 59), 'dinner'],
     ['21:31 is snack', at(21, 31), 'snack'],
     ['23:59 is snack', at(23, 59), 'snack'],
   ]
