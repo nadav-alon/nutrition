@@ -5,19 +5,19 @@ export type Day = string & { readonly [dayBrand]: true }
 
 const DAY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
 
-function parts(value: string): { year: number; month: number; date: number } | undefined {
+function parts(value: string): { year: number; month: number; dayOfMonth: number } | undefined {
   const match = DAY_PATTERN.exec(value)
   if (!match) return undefined
   const year = Number(match[1])
   const month = Number(match[2])
-  const date = Number(match[3])
-  const probe = new Date(Date.UTC(year, month - 1, date))
+  const dayOfMonth = Number(match[3])
+  const probe = new Date(Date.UTC(year, month - 1, dayOfMonth))
   const real =
-    probe.getUTCFullYear() === year && probe.getUTCMonth() === month - 1 && probe.getUTCDate() === date
-  return real ? { year, month, date } : undefined
+    probe.getUTCFullYear() === year && probe.getUTCMonth() === month - 1 && probe.getUTCDate() === dayOfMonth
+  return real ? { year, month, dayOfMonth } : undefined
 }
 
-/** The guard: whether `value` is a real calendar date written `YYYY-MM-DD`. */
+/** The guard: whether `value` is a real calendar day written `YYYY-MM-DD`. */
 export function isDay(value: string): value is Day {
   return parts(value) !== undefined
 }
@@ -28,60 +28,65 @@ export function day(value: string): Day {
   return value
 }
 
-function format(year: number, month: number, date: number): Day {
+function format({ year, month, dayOfMonth }: { year: number; month: number; dayOfMonth: number }): Day {
   const pad = (n: number, width: number) => String(n).padStart(width, '0')
-  return day(`${pad(year, 4)}-${pad(month, 2)}-${pad(date, 2)}`)
+  return day(`${pad(year, 4)}-${pad(month, 2)}-${pad(dayOfMonth, 2)}`)
 }
 
 /** The Day `instant` falls in, in the local time zone. */
 export function dayOf(instant: Date): Day {
-  return format(instant.getFullYear(), instant.getMonth() + 1, instant.getDate())
+  return format({
+    year: instant.getFullYear(),
+    month: instant.getMonth() + 1,
+    dayOfMonth: instant.getDate(),
+  })
 }
 
-function startOf(value: Day): Date {
-  const { year, month, date } = parts(value)!
-  return new Date(year, month - 1, date)
+/** Local midnight `offsetDays` from the start of `value`, plus an optional clock time. */
+function localMidnight(value: Day, offsetDays = 0, clock?: Date): Date {
+  const { year, month, dayOfMonth } = parts(value)!
+  return clock
+    ? new Date(
+        year,
+        month - 1,
+        dayOfMonth + offsetDays,
+        clock.getHours(),
+        clock.getMinutes(),
+        clock.getSeconds(),
+        clock.getMilliseconds(),
+      )
+    : new Date(year, month - 1, dayOfMonth + offsetDays)
 }
 
 /** The instant a Day starts: local midnight. Inclusive bound for querying Log Entries. */
 export function dayStart(value: Day): Date {
-  return startOf(value)
+  return localMidnight(value)
 }
 
 /** The instant the Day after `value` starts. Exclusive bound for querying Log Entries. */
 export function dayEnd(value: Day): Date {
-  const { year, month, date } = parts(value)!
-  return new Date(year, month - 1, date + 1)
+  return localMidnight(value, 1)
 }
 
 /** The Day before `value`. */
 export function previousDay(value: Day): Day {
-  const { year, month, date } = parts(value)!
-  const stepped = new Date(year, month - 1, date - 1)
-  return dayOf(stepped)
+  return dayOf(localMidnight(value, -1))
 }
 
 /** The Day after `value`, never past today: stepping forward from today stays on today. */
 export function nextDay(value: Day, now: Date): Day {
   const today = dayOf(now)
+  // Plain string comparison is calendar order only because a Day is always zero-padded `YYYY-MM-DD`.
   if (value >= today) return today
   return dayOf(dayEnd(value))
 }
 
 /**
  * The eaten time to offer when logging on `value`: `now` when the Day is today, otherwise that Day
- * at the current clock time. A clock time the Day skips (a DST gap) lands just after the gap.
+ * at the current clock time. A clock time the Day skips (a DST gap) lands just after the gap; one it
+ * repeats (a fall-back) lands on the first occurrence.
  */
 export function defaultEatenTime(value: Day, now: Date): Date {
   if (value === dayOf(now)) return new Date(now)
-  const { year, month, date } = parts(value)!
-  return new Date(
-    year,
-    month - 1,
-    date,
-    now.getHours(),
-    now.getMinutes(),
-    now.getSeconds(),
-    now.getMilliseconds(),
-  )
+  return localMidnight(value, 0, now)
 }
