@@ -4,7 +4,7 @@ import {
   collection,
   doc,
   getDocs,
-  limit as fsLimit,
+  limit,
   onSnapshot,
   orderBy,
   query,
@@ -13,8 +13,11 @@ import {
   startAfter,
   where,
   type DocumentData,
+  type DocumentReference,
+  type DocumentSnapshot,
   type Firestore,
   type QueryDocumentSnapshot,
+  type Transaction,
 } from 'firebase/firestore'
 import type { core } from 'data-platform'
 import { nutrition } from 'data-platform'
@@ -34,19 +37,33 @@ export function firestoreLogStore(db: Firestore, uid: core.Uid): LogStore {
         where('eatenAt', '<', Timestamp.fromDate(end)),
         orderBy('eatenAt'),
       )
-      return onSnapshot(day, (snapshot) => onEntries(snapshot.docs.filter(isLiveDoc).map(toLogEntry)), onError)
+      return onSnapshot(
+        day,
+        (snapshot) => {
+          let live: LogEntry[]
+          try {
+            live = snapshot.docs.filter(isLive).map(toLogEntry)
+          } catch (error) {
+            // A malformed document must reach the caller, not throw inside the SDK's callback.
+            onError?.(error instanceof Error ? error : new Error(String(error)))
+            return
+          }
+          onEntries(live)
+        },
+        onError,
+      )
     },
-    async recent(limit) {
+    async recent(count) {
       const live: LogEntry[] = []
       let after: QueryDocumentSnapshot | undefined
-      while (live.length < limit) {
-        const page = query(entries, orderBy('eatenAt', 'desc'), ...(after ? [startAfter(after)] : []), fsLimit(limit))
+      while (live.length < count) {
+        const page = query(entries, orderBy('eatenAt', 'desc'), ...(after ? [startAfter(after)] : []), limit(count))
         const { docs } = await getDocs(page)
-        live.push(...docs.filter(isLiveDoc).map(toLogEntry))
-        if (docs.length < limit) break
+        live.push(...docs.filter(isLive).map(toLogEntry))
+        if (docs.length < count) break
         after = docs[docs.length - 1]
       }
-      return live.slice(0, limit)
+      return live.slice(0, count)
     },
     async create(entry: NewLogEntry) {
       const created = await addDoc(entries, toDocument(entry))
@@ -55,8 +72,8 @@ export function firestoreLogStore(db: Firestore, uid: core.Uid): LogStore {
     async update(id, edit) {
       const ref = doc(entries, id)
       await runTransaction(db, async (transaction) => {
-        const snapshot = await transaction.get(ref)
-        if (!snapshot.exists() || !isLive(snapshot.data())) throw new Error(`No live Log Entry ${id}`)
+        const snapshot = await getLive(transaction, ref)
+        if (!snapshot) throw new Error(`No live Log Entry ${id}`)
         const current = toLogEntry(snapshot)
         const edited = applyEdit(current, edit)
         transaction.update(ref, {
@@ -70,24 +87,32 @@ export function firestoreLogStore(db: Firestore, uid: core.Uid): LogStore {
     async softDelete(id) {
       const ref = doc(entries, id)
       await runTransaction(db, async (transaction) => {
-        const snapshot = await transaction.get(ref)
-        if (!snapshot.exists() || !isLive(snapshot.data())) return
+        if (!(await getLive(transaction, ref))) return
         transaction.update(ref, { deletedAt: serverTimestamp() })
       })
     },
   }
 }
 
-/** Whether a stored entry is live: it has no `deletedAt`. */
-function isLiveDoc(snapshot: QueryDocumentSnapshot): boolean {
-  return isLive(snapshot.data())
+/** The entry's snapshot inside `transaction`, or `undefined` when it does not exist or is deleted. */
+async function getLive(transaction: Transaction, ref: DocumentReference): Promise<DocumentSnapshot | undefined> {
+  const snapshot = await transaction.get(ref)
+  return snapshot.exists() && isLive(snapshot) ? snapshot : undefined
 }
 
+/** Only the `NewLogEntry` fields are written, whatever else the argument carries. */
 function toDocument(entry: NewLogEntry): DocumentData {
-  return { ...entry, eatenAt: Timestamp.fromDate(entry.eatenAt) }
+  return {
+    name: entry.name,
+    source: entry.source,
+    nutrition: entry.nutrition,
+    servings: entry.servings,
+    mealType: entry.mealType,
+    eatenAt: Timestamp.fromDate(entry.eatenAt),
+  }
 }
 
-function toLogEntry(snapshot: QueryDocumentSnapshot): LogEntry {
+function toLogEntry(snapshot: DocumentSnapshot): LogEntry {
   const data = nutrition.logEntrySchema.parse(snapshot.data())
   const { eatenAt } = data
   return {
@@ -101,7 +126,7 @@ function toLogEntry(snapshot: QueryDocumentSnapshot): LogEntry {
   }
 }
 
-/** Whether stored data is live: `deletedAt` is absent. */
-function isLive(data: DocumentData): boolean {
-  return data.deletedAt === undefined
+/** Whether a stored entry is live: it has no `deletedAt`. */
+function isLive(snapshot: DocumentSnapshot): boolean {
+  return snapshot.get('deletedAt') === undefined
 }
