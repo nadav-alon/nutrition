@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { day, dayEnd, defaultEatenTime, dayOf, dayStart, isDay, nextDay, previousDay } from './day.ts'
 
-process.env.TZ = 'America/New_York'
-
 describe('Day', () => {
   it('accepts a real calendar date and refuses anything else', () => {
     expect(isDay('2026-03-08')).toBe(true)
