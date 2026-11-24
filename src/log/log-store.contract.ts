@@ -1,0 +1,103 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { nutrition } from 'data-platform'
+import type { LogEntryRecord, LogStore, NewLogEntry } from './log-store.ts'
+
+const { grams, kcal } = nutrition
+
+export const schnitzel: NewLogEntry = {
+  name: 'Schnitzel plate',
+  source: { kind: 'food', foodId: nutrition.foodId('schnitzel') },
+  nutrition: { kcal: kcal(650), proteinG: grams(30), carbsG: grams(70), fatG: grams(25) },
+  servings: 1.5,
+  mealType: 'lunch',
+  eatenAt: new Date('2026-03-10T12:30:00Z'),
+}
+
+export const quickToast: NewLogEntry = {
+  name: 'Toast',
+  source: { kind: 'quick' },
+  nutrition: { kcal: kcal(180), proteinG: grams(6), carbsG: grams(30), fatG: grams(3) },
+  servings: 1,
+  mealType: 'breakfast',
+  eatenAt: new Date('2026-03-10T07:00:00Z'),
+}
+
+export const DAY_START = new Date('2026-03-10T00:00:00Z')
+export const DAY_END = new Date('2026-03-11T00:00:00Z')
+
+/** The latest snapshot a Day watch delivered, once it satisfies `ready`. */
+export function watchDay(store: LogStore, start = DAY_START, end = DAY_END) {
+  let latest: readonly LogEntryRecord[] | undefined
+  const unsubscribe = store.watchDay(start, end, (entries) => {
+    latest = entries
+  })
+  return {
+    unsubscribe,
+    latest: () => latest,
+    /** Waits until the snapshot's entry names equal `names`. */
+    async names(names: readonly string[]) {
+      await vi.waitFor(() => expect(latest?.map((entry) => entry.name)).toEqual(names))
+    },
+  }
+}
+
+/**
+ * The behaviour every `LogStore` adapter has. `makeStore` gives a store with no entries, acting
+ * as one Member.
+ */
+export function logStoreContract(name: string, makeStore: () => Promise<LogStore>) {
+  describe(`${name} as a LogStore`, () => {
+    let store: LogStore
+
+    beforeEach(async () => {
+      store = await makeStore()
+    })
+
+    describe('reading a Day', () => {
+      it('is empty before anything is logged', async () => {
+        const day = watchDay(store)
+        await day.names([])
+        day.unsubscribe()
+      })
+
+      it('returns what was created, with the id create gave', async () => {
+        const id = await store.create(schnitzel)
+        const day = watchDay(store)
+        await day.names(['Schnitzel plate'])
+        expect(day.latest()).toEqual([{ ...schnitzel, id }])
+        day.unsubscribe()
+      })
+
+      it('creates a Quick Entry as well as a Food entry', async () => {
+        await store.create(quickToast)
+        const day = watchDay(store)
+        await day.names(['Toast'])
+        expect(day.latest()?.[0]?.source).toEqual({ kind: 'quick' })
+        day.unsubscribe()
+      })
+
+      it('returns the entries eaten from start up to, not including, end, oldest first', async () => {
+        await store.create(schnitzel)
+        await store.create(quickToast)
+        await store.create({ ...quickToast, name: 'Before', eatenAt: new Date('2026-03-09T23:59:59Z') })
+        await store.create({ ...quickToast, name: 'At end', eatenAt: DAY_END })
+        const day = watchDay(store)
+        await day.names(['Toast', 'Schnitzel plate'])
+        day.unsubscribe()
+      })
+
+      it('updates live as entries are created, and stops after unsubscribe', async () => {
+        const day = watchDay(store)
+        await day.names([])
+        await store.create(quickToast)
+        await day.names(['Toast'])
+        day.unsubscribe()
+        await store.create(schnitzel)
+        const another = watchDay(store)
+        await another.names(['Toast', 'Schnitzel plate'])
+        expect(day.latest()?.map((entry) => entry.name)).toEqual(['Toast'])
+        another.unsubscribe()
+      })
+    })
+  })
+}
