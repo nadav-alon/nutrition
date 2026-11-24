@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { day, dayEnd, dayOf, dayStart, isDay } from './day.ts'
+import { day, dayEnd, dayOf, dayStart, isDay, nextDay, previousDay } from './day.ts'
 
 process.env.TZ = 'America/New_York'
 
@@ -48,5 +48,33 @@ describe('Day range', () => {
 
   it('ends a year on the first of the next', () => {
     expect(dayEnd(day('2026-12-31'))).toEqual(new Date(2027, 0, 1))
+  })
+})
+
+describe('Day stepping', () => {
+  const now = new Date(2026, 5, 15, 12)
+
+  it('steps back across month and year ends', () => {
+    expect(previousDay(day('2026-03-01'))).toBe('2026-02-28')
+    expect(previousDay(day('2026-01-01'))).toBe('2025-12-31')
+  })
+
+  it('steps back and forward over a DST-change day without skipping or repeating one', () => {
+    expect(previousDay(day('2026-03-09'))).toBe('2026-03-08')
+    expect(previousDay(day('2026-03-08'))).toBe('2026-03-07')
+    expect(nextDay(day('2026-03-07'), now)).toBe('2026-03-08')
+    expect(nextDay(day('2026-03-08'), now)).toBe('2026-03-09')
+    expect(previousDay(day('2026-11-02'))).toBe('2026-11-01')
+    expect(nextDay(day('2026-11-01'), new Date(2027, 0, 1))).toBe('2026-11-02')
+  })
+
+  it('stops at today when stepping forward', () => {
+    expect(nextDay(day('2026-06-14'), now)).toBe('2026-06-15')
+    expect(nextDay(day('2026-06-15'), now)).toBe('2026-06-15')
+  })
+
+  it('treats the instant exactly at midnight as the new today', () => {
+    const midnight = new Date(2026, 5, 16)
+    expect(nextDay(day('2026-06-15'), midnight)).toBe('2026-06-16')
   })
 })

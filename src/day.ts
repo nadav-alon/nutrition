@@ -53,3 +53,17 @@ export function dayEnd(value: Day): Date {
   const { year, month, date } = parts(value)!
   return new Date(year, month - 1, date + 1)
 }
+
+/** The Day before `value`. */
+export function previousDay(value: Day): Day {
+  const { year, month, date } = parts(value)!
+  const stepped = new Date(year, month - 1, date - 1)
+  return dayOf(stepped)
+}
+
+/** The Day after `value`, never past today: stepping forward from today stays on today. */
+export function nextDay(value: Day, now: Date): Day {
+  const today = dayOf(now)
+  if (value >= today) return today
+  return dayOf(dayEnd(value))
+}
