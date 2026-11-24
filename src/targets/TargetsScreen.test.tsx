@@ -24,7 +24,7 @@ describe('TargetsScreen', () => {
   it('prefills each field from the current Targets and leaves an unset Target empty', async () => {
     const port = fakeTargetsPort()
     await port.write({ kcal: nutrition.kcal(2000), proteinG: nutrition.grams(150) })
-    render(<TargetsScreen port={port} />)
+    render(<TargetsScreen port={port} onLeave={vi.fn()} />)
     expect(await screen.findByLabelText('Calories (kcal)')).toHaveValue(2000)
     expect(screen.getByLabelText('Protein (g)')).toHaveValue(150)
     expect(screen.getByLabelText('Carbs (g)')).toHaveValue(null)
@@ -32,14 +32,14 @@ describe('TargetsScreen', () => {
   })
 
   it('shows empty fields when no Targets are set', async () => {
-    render(<TargetsScreen port={fakeTargetsPort()} />)
+    render(<TargetsScreen port={fakeTargetsPort()} onLeave={vi.fn()} />)
     expect(await screen.findByLabelText('Calories (kcal)')).toHaveValue(null)
   })
 
   it.each(['0', '-5'])('blocks saving %s with a message on that field', async (value) => {
     const port = fakeTargetsPort()
     const write = vi.spyOn(port, 'write')
-    render(<TargetsScreen port={port} />)
+    render(<TargetsScreen port={port} onLeave={vi.fn()} />)
     await screen.findByLabelText('Protein (g)')
     type('Protein (g)', value)
     save()
@@ -51,7 +51,7 @@ describe('TargetsScreen', () => {
   it('writes the filled fields through the port and leaves an empty one unset', async () => {
     const port = fakeTargetsPort()
     await port.write({ kcal: nutrition.kcal(2000), fatG: nutrition.grams(60) })
-    render(<TargetsScreen port={port} />)
+    render(<TargetsScreen port={port} onLeave={vi.fn()} />)
     await screen.findByLabelText('Protein (g)')
     type('Protein (g)', '150')
     type('Fat (g)', '')
@@ -62,10 +62,62 @@ describe('TargetsScreen', () => {
   it('shows why a write failed', async () => {
     const port = fakeTargetsPort()
     vi.spyOn(port, 'write').mockRejectedValue(new Error('offline'))
-    render(<TargetsScreen port={port} />)
+    render(<TargetsScreen port={port} onLeave={vi.fn()} />)
     await screen.findByLabelText('Protein (g)')
     type('Protein (g)', '150')
     save()
     expect(await screen.findByRole('alert')).toHaveTextContent('offline')
+  })
+
+  describe('leaving', () => {
+    function back() {
+      fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    }
+
+    it('leaves at once when nothing has changed', async () => {
+      const onLeave = vi.fn()
+      const confirm = vi.spyOn(window, 'confirm')
+      render(<TargetsScreen port={fakeTargetsPort()} onLeave={onLeave} />)
+      await screen.findByLabelText('Protein (g)')
+      back()
+      expect(confirm).not.toHaveBeenCalled()
+      expect(onLeave).toHaveBeenCalled()
+    })
+
+    it('asks first with unsaved changes, and stays when the Member declines', async () => {
+      const onLeave = vi.fn()
+      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+      render(<TargetsScreen port={fakeTargetsPort()} onLeave={onLeave} />)
+      await screen.findByLabelText('Protein (g)')
+      type('Protein (g)', '150')
+      back()
+      expect(confirm).toHaveBeenCalled()
+      expect(onLeave).not.toHaveBeenCalled()
+    })
+
+    it('leaves with unsaved changes once the Member agrees to discard them', async () => {
+      const onLeave = vi.fn()
+      vi.spyOn(window, 'confirm').mockReturnValue(true)
+      render(<TargetsScreen port={fakeTargetsPort()} onLeave={onLeave} />)
+      await screen.findByLabelText('Protein (g)')
+      type('Protein (g)', '150')
+      back()
+      expect(onLeave).toHaveBeenCalled()
+    })
+
+    it('leaves without asking after a save', async () => {
+      const onLeave = vi.fn()
+      const confirm = vi.spyOn(window, 'confirm')
+      const port = fakeTargetsPort()
+      render(<TargetsScreen port={port} onLeave={onLeave} />)
+      await screen.findByLabelText('Protein (g)')
+      type('Protein (g)', '150')
+      save()
+      await waitFor(() => expect(stored(port)).toEqual({ proteinG: 150 }))
+      await new Promise((resolve) => setTimeout(resolve))
+      back()
+      expect(confirm).not.toHaveBeenCalled()
+      expect(onLeave).toHaveBeenCalled()
+    })
   })
 })

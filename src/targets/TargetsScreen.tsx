@@ -44,13 +44,19 @@ function toTargets(draft: Draft): Targets {
   return targets
 }
 
+const discardPrompt = 'Discard your unsaved changes?'
+
 export type TargetsScreenProps = {
   port: TargetsPort
+  /** Called when the Member leaves the screen; with unsaved changes, only once they agree to discard them. */
+  onLeave: () => void
 }
 
 /** Sets the Member's daily Targets; a field left empty means no Target for that macro. */
-export function TargetsScreen({ port }: TargetsScreenProps) {
+export function TargetsScreen({ port, onLeave }: TargetsScreenProps) {
   const [draft, setDraft] = useState<Draft | null>(null)
+  /** The fields as last loaded or saved, which unsaved changes are measured against. */
+  const [saved, setSaved] = useState<Draft | null>(null)
   const [errors, setErrors] = useState<Errors>({})
   const [saveError, setSaveError] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -61,14 +67,29 @@ export function TargetsScreen({ port }: TargetsScreenProps) {
       (targets) => {
         if (!first) return
         first = false
-        setDraft(Object.fromEntries(FIELDS.map(({ key }) => [key, targets?.[key] === undefined ? '' : String(targets[key])])) as Draft)
+        const loaded = Object.fromEntries(FIELDS.map(({ key }) => [key, targets?.[key] === undefined ? '' : String(targets[key])])) as Draft
+        setDraft(loaded)
+        setSaved(loaded)
       },
       (error) => setLoadError(error.message),
     )
   }, [port])
 
+  const dirty = draft !== null && saved !== null && FIELDS.some(({ key }) => draft[key] !== saved[key])
+
+  useEffect(() => {
+    if (!dirty) return
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault()
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
+
   if (loadError !== null) return <main class="screen targets" role="alert">{loadError}</main>
   if (draft === null) return <main class="screen targets" />
+
+  function handleBack() {
+    if (!dirty || confirm(discardPrompt)) onLeave()
+  }
 
   async function handleSubmit(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -78,6 +99,7 @@ export function TargetsScreen({ port }: TargetsScreenProps) {
     setSaveError(null)
     try {
       await port.write(toTargets(draft!))
+      setSaved(draft)
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Could not save your Targets.')
     }
@@ -85,6 +107,9 @@ export function TargetsScreen({ port }: TargetsScreenProps) {
 
   return (
     <main class="screen targets">
+      <Button variant="text" onClick={handleBack}>
+        Back
+      </Button>
       <form class="stack" noValidate onSubmit={handleSubmit}>
         {FIELDS.map(({ key, label }) => (
           <TextField
