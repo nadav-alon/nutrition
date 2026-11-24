@@ -4,8 +4,10 @@ import { nutrition } from 'data-platform'
 import { Button } from 'household-ui/ui/Button.tsx'
 import { Select } from 'household-ui/ui/Select.tsx'
 import { TextField } from 'household-ui/ui/TextField.tsx'
+import { errorMessage } from '../error-message.ts'
 import type { LogEntry, LogEntryEdit, LogStore } from './log-store.ts'
 import { fromLocalInput, toLocalInput } from './local-datetime.ts'
+import { isMealType, mealTypeLabel } from './meal-type-label.ts'
 import { isServings, servings as toServings } from './servings.ts'
 import { useLeaveGuard } from './use-leave-guard.ts'
 
@@ -46,7 +48,7 @@ export function LogEntryScreen({ store, entry, onDone }: LogEntryScreenProps) {
       await store.update(entry.id, edit)
       onDone()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save.')
+      setError(errorMessage(err, 'Could not save.'))
     }
   }
 
@@ -56,7 +58,7 @@ export function LogEntryScreen({ store, entry, onDone }: LogEntryScreenProps) {
       await store.softDelete(entry.id)
       onDone()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not delete.')
+      setError(errorMessage(err, 'Could not delete.'))
     }
   }
 
@@ -90,10 +92,13 @@ export function LogEntryScreen({ store, entry, onDone }: LogEntryScreenProps) {
         <Select
           label="Meal type"
           value={mealType}
-          onChange={(event) => setMealType(event.currentTarget.value as nutrition.MealType)}
+          onChange={(event) => {
+            const { value } = event.currentTarget
+            if (isMealType(value)) setMealType(value)
+          }}
         >
           {nutrition.MEAL_TYPES.map((type) => (
-            <option value={type}>{type[0]!.toUpperCase() + type.slice(1)}</option>
+            <option value={type}>{mealTypeLabel(type)}</option>
           ))}
         </Select>
         <TextField
