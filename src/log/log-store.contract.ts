@@ -99,5 +99,34 @@ export function logStoreContract(name: string, makeStore: () => Promise<LogStore
         another.unsubscribe()
       })
     })
+
+    describe('soft deleting', () => {
+      it('removes the entry from its Day, and leaves the others', async () => {
+        const id = await store.create(schnitzel)
+        await store.create(quickToast)
+        const day = watchDay(store)
+        await day.names(['Toast', 'Schnitzel plate'])
+        await store.softDelete(id)
+        await day.names(['Toast'])
+        day.unsubscribe()
+      })
+
+      it('never returns a deleted entry to a Day read opened afterwards', async () => {
+        const id = await store.create(schnitzel)
+        await store.softDelete(id)
+        const day = watchDay(store)
+        await day.names([])
+        day.unsubscribe()
+      })
+
+      it('is a no-op on an entry already deleted', async () => {
+        const id = await store.create(schnitzel)
+        await store.softDelete(id)
+        await store.softDelete(id)
+        const day = watchDay(store)
+        await day.names([])
+        day.unsubscribe()
+      })
+    })
   })
 }

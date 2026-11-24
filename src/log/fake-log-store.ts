@@ -10,12 +10,13 @@ interface Watcher {
 /** An in-memory `LogStore`; the Firestore adapter must pass the same contract. */
 export function fakeLogStore(): LogStore {
   const entries = new Map<nutrition.LogEntryId, LogEntryRecord>()
+  const deleted = new Set<nutrition.LogEntryId>()
   const watchers = new Set<Watcher>()
   let counter = 0
 
   const inDay = ({ start, end }: Watcher) =>
     [...entries.values()]
-      .filter((entry) => entry.eatenAt >= start && entry.eatenAt < end)
+      .filter((entry) => !deleted.has(entry.id) && entry.eatenAt >= start && entry.eatenAt < end)
       .sort((a, b) => a.eatenAt.getTime() - b.eatenAt.getTime())
 
   const notify = () => {
@@ -34,6 +35,10 @@ export function fakeLogStore(): LogStore {
       entries.set(id, { ...entry, id })
       notify()
       return id
+    },
+    async softDelete(id) {
+      deleted.add(id)
+      notify()
     },
   }
 }

@@ -34,4 +34,6 @@ export interface LogStore {
     onError?: (error: Error) => void,
   ): Unsubscribe
   create(entry: NewLogEntry): Promise<nutrition.LogEntryId>
+  /** Soft deletes an entry; it is never returned again. Deleting one already deleted is a no-op. */
+  softDelete(id: nutrition.LogEntryId): Promise<void>
 }
