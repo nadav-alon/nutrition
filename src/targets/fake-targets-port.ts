@@ -11,7 +11,8 @@ export function fakeTargetsPort(): TargetsPort {
       return () => listeners.delete(onChange)
     },
     async write(targets) {
-      current = targets
+      // A copy without undefined values, as the Firestore adapter stores and delivers.
+      current = Object.fromEntries(Object.entries(targets).filter(([, value]) => value !== undefined)) as Targets
       for (const listener of listeners) listener(current)
     },
   }
