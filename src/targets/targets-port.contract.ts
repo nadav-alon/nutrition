@@ -46,7 +46,9 @@ export function targetsPortContract(name: string, make: () => Promise<TargetsPor
     it('reads each of kcal, protein, carbs and fat as unset when written without it', async () => {
       const port = await make()
       const watcher = watch(port)
+      await watcher.until(1)
       await port.write({ kcal: nutrition.kcal(2000), proteinG: nutrition.grams(150), carbsG: nutrition.grams(200), fatG: nutrition.grams(60) })
+      await watcher.until(2)
       await port.write({ carbsG: nutrition.grams(200) })
       await watcher.until(3)
       watcher.stop()
