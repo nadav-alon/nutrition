@@ -100,5 +100,19 @@ export function foodsContract(name: string, open: () => Promise<Foods>) {
       const foods = await open()
       await expect(foods.edit(nutrition.foodId('missing'), { name: 'Ghost' })).rejects.toThrow()
     })
+
+    it('never lists a soft-deleted Food', async () => {
+      const foods = await open()
+      const gone = await foods.add(schnitzel)
+      await foods.add(apple)
+      await foods.softDelete(gone)
+      const list = await listed(foods, (l) => l.length === 1)
+      expect(list.map((f) => f.name)).toEqual(['Apple'])
+    })
+
+    it('rejects a soft delete of a Food that does not exist', async () => {
+      const foods = await open()
+      await expect(foods.softDelete(nutrition.foodId('missing'))).rejects.toThrow()
+    })
   })
 }

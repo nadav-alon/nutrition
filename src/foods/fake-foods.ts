@@ -34,5 +34,9 @@ export function fakeFoods(): Foods {
       saved.set(id, next)
       notify()
     },
+    async softDelete(id) {
+      if (!saved.delete(id)) throw new Error(`No such Food: ${id}`)
+      notify()
+    },
   }
 }

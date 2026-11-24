@@ -1,4 +1,4 @@
-import { addDoc, collection, deleteField, doc, onSnapshot, updateDoc, type Firestore } from 'firebase/firestore'
+import { addDoc, collection, deleteField, doc, onSnapshot, serverTimestamp, updateDoc, type Firestore } from 'firebase/firestore'
 import { nutrition } from 'data-platform'
 import { byName, type Foods, type SavedFood } from './foods.ts'
 
@@ -42,6 +42,9 @@ export function firestoreFoods(db: Firestore): Foods {
         ...(perServing === undefined ? {} : { perServing }),
         ...(estimated === undefined ? {} : { estimated: estimated ? true : deleteField() }),
       })
+    },
+    async softDelete(id) {
+      await updateDoc(doc(foods, id), { deletedAt: serverTimestamp() })
     },
   }
 }

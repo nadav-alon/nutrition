@@ -38,6 +38,8 @@ export interface Foods {
   add(fields: FoodFields): Promise<nutrition.FoodId>
   /** Applies `changes` to a Food. Rejects when there is no such live Food. */
   edit(id: nutrition.FoodId, changes: FoodChanges): Promise<void>
+  /** Soft-deletes a Food. Log Entries that point at it are untouched. Rejects when there is no such live Food. */
+  softDelete(id: nutrition.FoodId): Promise<void>
 }
 
 /** The order `Foods.watch` lists in. */
