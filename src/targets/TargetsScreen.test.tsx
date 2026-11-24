@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/preact'
+import { fireEvent, render, screen } from '@testing-library/preact'
 import { describe, expect, it } from 'vitest'
 import { nutrition } from 'data-platform'
 import { fakeTargetsPort } from './fake-targets-port.ts'
@@ -18,5 +18,13 @@ describe('TargetsScreen', () => {
   it('shows empty fields when no Targets are set', async () => {
     render(<TargetsScreen port={fakeTargetsPort()} />)
     expect(await screen.findByLabelText('Calories (kcal)')).toHaveValue(null)
+  })
+
+  it.each(['0', '-5'])('blocks saving %s with a message on that field', async (value) => {
+    render(<TargetsScreen port={fakeTargetsPort()} />)
+    fireEvent.input(await screen.findByLabelText('Protein (g)'), { target: { value } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(screen.getByRole('alert')).toHaveTextContent(/above zero/)
+    expect(screen.getByLabelText('Protein (g)')).toBeInvalid()
   })
 })
