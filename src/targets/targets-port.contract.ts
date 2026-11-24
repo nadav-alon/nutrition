@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { nutrition } from 'data-platform'
 import type { Targets, TargetsPort } from './targets-port.ts'
 
 /** Collects what a port's subscription delivers, and waits for the next delivery. */
@@ -26,6 +27,20 @@ export function targetsPortContract(name: string, make: () => Promise<TargetsPor
       watcher.stop()
       expect(watcher.seen).toEqual([null])
       expect(watcher.errors).toEqual([])
+    })
+
+    it('delivers Targets as they are written, live', async () => {
+      const port = await make()
+      const watcher = watch(port)
+      await watcher.until(1)
+      const first = { kcal: nutrition.kcal(2000), proteinG: nutrition.grams(150) }
+      const second = { kcal: nutrition.kcal(1800), proteinG: nutrition.grams(150), fatG: nutrition.grams(60) }
+      await port.write(first)
+      await watcher.until(2)
+      await port.write(second)
+      await watcher.until(3)
+      watcher.stop()
+      expect(watcher.seen).toEqual([null, first, second])
     })
   })
 }
