@@ -1,0 +1,37 @@
+import { addDoc, collection, onSnapshot, type Firestore } from 'firebase/firestore'
+import { nutrition } from 'data-platform'
+import { byName, type Foods, type SavedFood } from './foods.ts'
+
+/**
+ * `Foods` over the platform's `foods` collection, as the signed-in Member that `db` belongs to.
+ * A stored document that does not parse as a Food is left out of the list rather than failing it.
+ */
+export function firestoreFoods(db: Firestore): Foods {
+  const foods = collection(db, nutrition.FOODS_COLLECTION)
+  return {
+    watch(listener) {
+      return onSnapshot(foods, (snapshot) => {
+        const live: SavedFood[] = []
+        for (const doc of snapshot.docs) {
+          const data = doc.data()
+          if (data.deletedAt !== undefined) continue
+          const parsed = nutrition.foodSchema.safeParse(data)
+          if (!parsed.success) continue
+          const { name, place, servingLabel, perServing, estimated } = parsed.data
+          live.push({ id: nutrition.foodId(doc.id), name, place, servingLabel, perServing, estimated: estimated === true })
+        }
+        listener(live.sort(byName))
+      })
+    },
+    async add({ name, place, servingLabel, perServing, estimated }) {
+      const created = await addDoc(foods, {
+        name,
+        ...(place === undefined ? {} : { place }),
+        ...(servingLabel === undefined ? {} : { servingLabel }),
+        perServing,
+        ...(estimated ? { estimated: true } : {}),
+      })
+      return nutrition.foodId(created.id)
+    },
+  }
+}
