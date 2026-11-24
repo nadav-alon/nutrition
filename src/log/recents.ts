@@ -1,6 +1,8 @@
 import { nutrition as platformNutrition } from 'data-platform'
 
 import type { LogEntry } from './log-store.ts'
+import { rescaleNutrition } from './rescale.ts'
+import { servings } from './servings.ts'
 
 /** A thing offered for logging again: a saved Food, or a Quick Entry's name and per-Serving Nutrition. */
 export type Recent =
@@ -9,40 +11,38 @@ export type Recent =
 
 export const MAX_RECENTS = 10
 
-const { grams, kcal } = platformNutrition
+const quickEntryKey = (name: string) => name.trim().replace(/\s+/g, ' ').toLowerCase()
 
 /**
  * The distinct things to offer for logging again, from `entries` (newest first): the newest
  * occurrence of each, newest first, at most `MAX_RECENTS`. A Food entry whose Food is not in
- * `liveFoods` is dropped. A Quick Entry carries the name and per-Serving Nutrition of its newest
+ * `liveFoods` is dropped; the rest carry the live Food's current name. A Quick Entry, identified by
+ * its name ignoring case and whitespace, carries the name and per-Serving Nutrition of its newest
  * occurrence.
  */
 export function recents(
   entries: readonly LogEntry[],
-  liveFoods: ReadonlySet<platformNutrition.FoodId>,
+  liveFoods: ReadonlyMap<platformNutrition.FoodId, Pick<platformNutrition.Food, 'name'>>,
 ): readonly Recent[] {
-  const seen = new Set<string>()
+  const seenFoods = new Set<platformNutrition.FoodId>()
+  const seenQuickEntries = new Set<string>()
   const result: Recent[] = []
   for (const entry of entries) {
     if (result.length === MAX_RECENTS) break
     const { source } = entry
-    if (source.kind === 'food' && !liveFoods.has(source.foodId)) continue
-    const key = source.kind === 'food' ? `food:${source.foodId}` : `quick:${entry.name.trim().toLowerCase()}`
-    if (seen.has(key)) continue
-    seen.add(key)
     if (source.kind === 'food') {
-      result.push({ kind: 'food', foodId: source.foodId, name: entry.name })
+      const food = liveFoods.get(source.foodId)
+      if (!food || seenFoods.has(source.foodId)) continue
+      seenFoods.add(source.foodId)
+      result.push({ kind: 'food', foodId: source.foodId, name: food.name })
     } else {
-      const perServing = (value: number) => value / entry.servings
+      const key = quickEntryKey(entry.name)
+      if (seenQuickEntries.has(key)) continue
+      seenQuickEntries.add(key)
       result.push({
         kind: 'quick',
         name: entry.name,
-        perServing: {
-          kcal: kcal(perServing(entry.nutrition.kcal)),
-          proteinG: grams(perServing(entry.nutrition.proteinG)),
-          carbsG: grams(perServing(entry.nutrition.carbsG)),
-          fatG: grams(perServing(entry.nutrition.fatG)),
-        },
+        perServing: rescaleNutrition(entry.nutrition, entry.servings, servings(1)),
       })
     }
   }
