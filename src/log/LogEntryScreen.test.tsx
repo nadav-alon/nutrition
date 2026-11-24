@@ -49,3 +49,30 @@ describe('LogEntryScreen', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(/positive/i)
   })
 })
+
+describe('LogEntryScreen Meal Type and eaten time', () => {
+  it('saves a changed Meal Type', async () => {
+    const { stored, onDone } = await setup()
+    fireEvent.change(screen.getByLabelText('Meal type'), { target: { value: 'snack' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    expect((await stored())?.mealType).toBe('snack')
+  })
+
+  it('keeps the chosen Meal Type when the eaten time moves into another band', async () => {
+    const { stored, onDone } = await setup()
+    // Lunch at 12:30 moved to 08:00 would be guessed as breakfast; the Member's lunch stands.
+    fireEvent.input(screen.getByLabelText('Eaten at'), { target: { value: '2026-03-10T08:00' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    const saved = await stored()
+    expect(saved?.eatenAt).toEqual(new Date('2026-03-10T08:00'))
+    expect(saved?.mealType).toBe('lunch')
+  })
+
+  it('does not save an eaten time that is cleared', async () => {
+    await setup()
+    fireEvent.input(screen.getByLabelText('Eaten at'), { target: { value: '' } })
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+  })
+})
