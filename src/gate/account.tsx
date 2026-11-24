@@ -1,4 +1,5 @@
 import { createContext } from 'preact'
+import type { core } from 'data-platform'
 import { useContext, useState } from 'preact/hooks'
 import { TopAppBarActions } from 'household-ui/shell/TopAppBar.tsx'
 import { IconButton } from 'household-ui/ui/IconButton.tsx'
@@ -8,7 +9,7 @@ import { Button } from 'household-ui/ui/Button.tsx'
 
 /** The signed-in Member, and how they sign out; provided by the AuthGate to everything it lets in. */
 export interface SignedInMember {
-  email: string
+  email: core.Email
   signOut: () => void
 }
 
