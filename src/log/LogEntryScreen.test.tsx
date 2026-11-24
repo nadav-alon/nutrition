@@ -1,9 +1,12 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/preact'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fakeLogStore } from './fake-log-store.ts'
 import { LogEntryScreen } from './LogEntryScreen.tsx'
 import { schnitzel } from './log-store.contract.ts'
 import type { LogEntry, NewLogEntry } from './log-store.ts'
+
+/** The latest instant a Date can hold: an upper bound that includes every entry. */
+const END_OF_TIME = new Date(8.64e15)
 
 /** A fake store holding the schnitzel entry, with the entry as the screen is handed it. */
 async function setup(logged: NewLogEntry = schnitzel) {
@@ -12,13 +15,15 @@ async function setup(logged: NewLogEntry = schnitzel) {
   const entry: LogEntry = { ...logged, id }
   const onDone = vi.fn()
   const view = render(<LogEntryScreen store={store} entry={entry} onDone={onDone} />)
-  const stored = async () => {
+  const stored = () => {
     let latest: readonly LogEntry[] = []
-    store.watchDay(new Date(0), new Date(8.64e15), (entries) => (latest = entries))()
+    store.watchDay(new Date(0), END_OF_TIME, (entries) => (latest = entries))()
     return latest[0]
   }
   return { store, entry, onDone, stored, ...view }
 }
+
+afterEach(() => vi.restoreAllMocks())
 
 describe('LogEntryScreen', () => {
   it('shows the entry name and Nutrition totals as text, not inputs', async () => {
@@ -29,6 +34,8 @@ describe('LogEntryScreen', () => {
     expect(screen.getByText('70 g', { selector: 'dd' })).toBeInTheDocument()
     expect(screen.getByText('25 g', { selector: 'dd' })).toBeInTheDocument()
     expect(screen.queryByLabelText(/name/i)).toBeNull()
+    expect(screen.queryAllByRole('textbox')).toHaveLength(0)
+    expect(screen.getAllByRole('spinbutton')).toEqual([screen.getByLabelText('Servings')])
   })
 
   it('saves changed servings through update, so the totals rescale from the snapshot', async () => {
@@ -37,7 +44,7 @@ describe('LogEntryScreen', () => {
     fireEvent.input(screen.getByLabelText('Servings'), { target: { value: '3' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(onDone).toHaveBeenCalled())
-    const saved = await stored()
+    const saved = stored()
     expect(saved?.servings).toBe(3)
     expect(saved?.nutrition.kcal).toBe(1300)
   })
@@ -49,7 +56,6 @@ describe('LogEntryScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
     expect(confirm).not.toHaveBeenCalled()
     expect(onDone).toHaveBeenCalled()
-    confirm.mockRestore()
   })
 
   it('keeps the eaten time to the second when only servings change', async () => {
@@ -58,7 +64,7 @@ describe('LogEntryScreen', () => {
     fireEvent.input(screen.getByLabelText('Servings'), { target: { value: '2' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(onDone).toHaveBeenCalled())
-    expect((await stored())?.eatenAt).toEqual(eatenAt)
+    expect((stored())?.eatenAt).toEqual(eatenAt)
   })
 
   it('does not save servings that are not positive', async () => {
@@ -75,17 +81,18 @@ describe('LogEntryScreen Meal Type and eaten time', () => {
     fireEvent.change(screen.getByLabelText('Meal type'), { target: { value: 'snack' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(onDone).toHaveBeenCalled())
-    expect((await stored())?.mealType).toBe('snack')
+    expect((stored())?.mealType).toBe('snack')
   })
 
-  it('keeps the chosen Meal Type when the eaten time moves into another band', async () => {
+  it('keeps the chosen Meal Type when the eaten time moves from the breakfast band into the dinner band', async () => {
     const { stored, onDone } = await setup()
-    // Lunch at 12:30 moved to 08:00 would be guessed as breakfast; the Member's lunch stands.
-    fireEvent.input(screen.getByLabelText('Eaten at'), { target: { value: '2026-03-10T08:00' } })
+    // The entry starts at 08:30 local (the breakfast band) as lunch; 19:00 would be guessed as dinner,
+    // but the Member's lunch stands.
+    fireEvent.input(screen.getByLabelText('Eaten at'), { target: { value: '2026-03-10T19:00' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(onDone).toHaveBeenCalled())
-    const saved = await stored()
-    expect(saved?.eatenAt).toEqual(new Date('2026-03-10T08:00'))
+    const saved = stored()
+    expect(saved?.eatenAt).toEqual(new Date('2026-03-10T19:00'))
     expect(saved?.mealType).toBe('lunch')
   })
 
@@ -103,18 +110,26 @@ describe('LogEntryScreen delete', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
     expect(confirm).toHaveBeenCalled()
     await waitFor(() => expect(onDone).toHaveBeenCalled())
-    expect(await stored()).toBeUndefined()
+    expect(stored()).toBeUndefined()
     await expect(store.update(entry.id, {})).rejects.toThrow()
-    confirm.mockRestore()
+  })
+
+  it('deletes with pending edits after only the delete prompt', async () => {
+    const { onDone, stored } = await setup()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    fireEvent.input(screen.getByLabelText('Servings'), { target: { value: '4' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    expect(confirm).toHaveBeenCalledTimes(1)
+    expect(stored()).toBeUndefined()
   })
 
   it('does nothing when the Member declines', async () => {
     const { onDone, stored } = await setup()
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
     expect(onDone).not.toHaveBeenCalled()
-    expect(await stored()).toBeDefined()
-    confirm.mockRestore()
+    expect(stored()).toBeDefined()
   })
 })
 
@@ -125,7 +140,6 @@ describe('LogEntryScreen leaving', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
     expect(confirm).not.toHaveBeenCalled()
     expect(onDone).toHaveBeenCalled()
-    confirm.mockRestore()
   })
 
   it('asks before leaving with unsaved changes, and stays when the Member declines', async () => {
@@ -138,7 +152,6 @@ describe('LogEntryScreen leaving', () => {
     confirm.mockReturnValue(true)
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
     expect(onDone).toHaveBeenCalled()
-    confirm.mockRestore()
   })
 
   it.each([
@@ -152,7 +165,6 @@ describe('LogEntryScreen leaving', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
     expect(confirm).toHaveBeenCalled()
     expect(onDone).not.toHaveBeenCalled()
-    confirm.mockRestore()
   })
 
   it('warns on page unload only while there are unsaved changes', async () => {
