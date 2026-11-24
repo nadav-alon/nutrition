@@ -1,4 +1,4 @@
-import { addDoc, collection, onSnapshot, type Firestore } from 'firebase/firestore'
+import { addDoc, collection, deleteField, doc, onSnapshot, updateDoc, type Firestore } from 'firebase/firestore'
 import { nutrition } from 'data-platform'
 import { byName, type Foods, type SavedFood } from './foods.ts'
 
@@ -32,6 +32,16 @@ export function firestoreFoods(db: Firestore): Foods {
         ...(estimated ? { estimated: true } : {}),
       })
       return nutrition.foodId(created.id)
+    },
+    async edit(id, { name, place, servingLabel, perServing, estimated }) {
+      const cleared = (value: string | null) => (value === null ? deleteField() : value)
+      await updateDoc(doc(foods, id), {
+        ...(name === undefined ? {} : { name }),
+        ...(place === undefined ? {} : { place: cleared(place) }),
+        ...(servingLabel === undefined ? {} : { servingLabel: cleared(servingLabel) }),
+        ...(perServing === undefined ? {} : { perServing }),
+        ...(estimated === undefined ? {} : { estimated: estimated ? true : deleteField() }),
+      })
     },
   }
 }

@@ -70,5 +70,35 @@ export function foodsContract(name: string, open: () => Promise<Foods>) {
       expect(seen[0]).toBe(0)
       expect(seen.at(-1)).toBe(2)
     })
+
+    it('edits every field of a Food', async () => {
+      const foods = await open()
+      const id = await foods.add(apple)
+      await foods.edit(id, { name: 'Green apple', place: 'Market', servingLabel: '1 medium', perServing: schnitzel.perServing, estimated: true })
+      expect(await listed(foods, (l) => l[0]?.name === 'Green apple')).toEqual([
+        { id, name: 'Green apple', place: 'Market', servingLabel: '1 medium', perServing: schnitzel.perServing, estimated: true },
+      ])
+    })
+
+    it('leaves what an edit does not name as it was', async () => {
+      const foods = await open()
+      const id = await foods.add(schnitzel)
+      await foods.edit(id, { name: 'Schnitzel' })
+      expect(await listed(foods, (l) => l[0]?.name === 'Schnitzel')).toEqual([{ ...schnitzel, name: 'Schnitzel', id }])
+    })
+
+    it('clears the place and serving label with null, and the Estimated flag with false', async () => {
+      const foods = await open()
+      const id = await foods.add(schnitzel)
+      await foods.edit(id, { place: null, servingLabel: null, estimated: false })
+      const [food] = await listed(foods, (l) => l[0]?.estimated === false)
+      expect(food?.place).toBeUndefined()
+      expect(food?.servingLabel).toBeUndefined()
+    })
+
+    it('rejects an edit of a Food that does not exist', async () => {
+      const foods = await open()
+      await expect(foods.edit(nutrition.foodId('missing'), { name: 'Ghost' })).rejects.toThrow()
+    })
   })
 }

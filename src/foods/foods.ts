@@ -10,6 +10,15 @@ export interface FoodFields {
   estimated: boolean
 }
 
+/** Changes to a Food: what is given replaces what was there, and `null` clears the place or serving label. */
+export interface FoodChanges {
+  name?: string
+  place?: string | null
+  servingLabel?: string | null
+  perServing?: nutrition.Nutrition
+  estimated?: boolean
+}
+
 /** A live Food as the Household sees it. */
 export interface SavedFood extends FoodFields {
   id: nutrition.FoodId
@@ -27,6 +36,8 @@ export interface Foods {
   watch(listener: (foods: readonly SavedFood[]) => void): () => void
   /** Saves a new Food and returns its id. */
   add(fields: FoodFields): Promise<nutrition.FoodId>
+  /** Applies `changes` to a Food. Rejects when there is no such live Food. */
+  edit(id: nutrition.FoodId, changes: FoodChanges): Promise<void>
 }
 
 /** The order `Foods.watch` lists in. */

@@ -24,5 +24,15 @@ export function fakeFoods(): Foods {
       notify()
       return id
     },
+    async edit(id, changes) {
+      const food = saved.get(id)
+      if (food === undefined) throw new Error(`No such Food: ${id}`)
+      const { place, servingLabel, ...rest } = changes
+      const next: SavedFood = { ...food, ...rest }
+      if (place !== undefined) next.place = place ?? undefined
+      if (servingLabel !== undefined) next.servingLabel = servingLabel ?? undefined
+      saved.set(id, next)
+      notify()
+    },
   }
 }
