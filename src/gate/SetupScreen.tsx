@@ -10,11 +10,11 @@ import { TextArea } from 'household-ui/ui/TextArea.tsx'
 export type SetupScreenProps = {
   onConfigured: (config: FirebaseWebConfig) => void
   /** An error to show up front, e.g. from a device-transfer link that failed to parse. */
-  initialError?: string | null
+  initialError: string | null
 }
 
 /** Collects the Household's Firebase config when none is stored on this origin. */
-export function SetupScreen({ onConfigured, initialError = null }: SetupScreenProps) {
+export function SetupScreen({ onConfigured, initialError }: SetupScreenProps) {
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(initialError)
 

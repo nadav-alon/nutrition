@@ -19,14 +19,14 @@ function paste(text: string) {
 describe('SetupScreen', () => {
   it('hands a pasted config to onConfigured', () => {
     const onConfigured = vi.fn()
-    render(<SetupScreen onConfigured={onConfigured} />)
+    render(<SetupScreen onConfigured={onConfigured} initialError={null} />)
     paste(configJson)
     expect(onConfigured).toHaveBeenCalledWith(JSON.parse(configJson))
   })
 
   it('shows why a pasted config was refused', () => {
     const onConfigured = vi.fn()
-    render(<SetupScreen onConfigured={onConfigured} />)
+    render(<SetupScreen onConfigured={onConfigured} initialError={null} />)
     paste('{"apiKey":"k"}')
     expect(screen.getByRole('alert')).toHaveTextContent(/missing or has empty fields/)
     expect(onConfigured).not.toHaveBeenCalled()
