@@ -1,7 +1,7 @@
 import type { nutrition } from 'data-platform'
 
 /** A Log Entry as the app reads it. `nutrition` is the totals for all `servings`, a snapshot taken when it was logged. */
-export interface LogEntryRecord {
+export interface LogEntry {
   readonly id: nutrition.LogEntryId
   readonly name: string
   readonly source: nutrition.LogEntrySource
@@ -12,10 +12,10 @@ export interface LogEntryRecord {
 }
 
 /** What logging something needs: a Food's entry carries `source.foodId`, a Quick Entry's source is `{ kind: 'quick' }`. */
-export type NewLogEntry = Omit<LogEntryRecord, 'id'>
+export type NewLogEntry = Omit<LogEntry, 'id'>
 
 /** The only fields of a Log Entry that change after logging. */
-export type LogEntryEdit = Partial<Pick<LogEntryRecord, 'servings' | 'mealType' | 'eatenAt'>>
+export type LogEntryEdit = Partial<Pick<LogEntry, 'servings' | 'mealType' | 'eatenAt'>>
 
 export type Unsubscribe = () => void
 
@@ -30,11 +30,11 @@ export interface LogStore {
   watchDay(
     start: Date,
     end: Date,
-    onEntries: (entries: readonly LogEntryRecord[]) => void,
+    onEntries: (entries: readonly LogEntry[]) => void,
     onError?: (error: Error) => void,
   ): Unsubscribe
   /** The most recent live entries across Days, newest first, at most `limit`; it feeds Recents. */
-  recent(limit: number): Promise<readonly LogEntryRecord[]>
+  recent(limit: number): Promise<readonly LogEntry[]>
   create(entry: NewLogEntry): Promise<nutrition.LogEntryId>
   /**
    * Changes servings, Meal Type and eaten time, and nothing else. Changing servings rescales the

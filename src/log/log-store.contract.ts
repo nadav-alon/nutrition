@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nutrition } from 'data-platform'
-import type { LogEntryRecord, LogStore, NewLogEntry } from './log-store.ts'
+import type { LogEntry, LogStore, NewLogEntry } from './log-store.ts'
 
 const { grams, kcal } = nutrition
 
@@ -27,7 +27,7 @@ export const DAY_END = new Date('2026-03-11T00:00:00Z')
 
 /** The latest snapshot a Day watch delivered, once it satisfies `ready`. */
 export function watchDay(store: LogStore, start = DAY_START, end = DAY_END) {
-  let latest: readonly LogEntryRecord[] | undefined
+  let latest: readonly LogEntry[] | undefined
   const unsubscribe = store.watchDay(start, end, (entries) => {
     latest = entries
   })

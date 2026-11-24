@@ -19,7 +19,7 @@ import {
 import type { core } from 'data-platform'
 import { nutrition } from 'data-platform'
 import { applyEdit } from './apply-edit.ts'
-import type { LogEntryRecord, LogStore, NewLogEntry } from './log-store.ts'
+import type { LogEntry, LogStore, NewLogEntry } from './log-store.ts'
 
 /** The Firestore adapter for `LogStore`: `nutritionLogs/{uid}/entries`, one document per Log Entry. */
 export function firestoreLogStore(db: Firestore, uid: core.Uid): LogStore {
@@ -33,15 +33,15 @@ export function firestoreLogStore(db: Firestore, uid: core.Uid): LogStore {
         where('eatenAt', '<', Timestamp.fromDate(end)),
         orderBy('eatenAt'),
       )
-      return onSnapshot(day, (snapshot) => onEntries(snapshot.docs.filter(isLiveDoc).map(toRecord)), onError)
+      return onSnapshot(day, (snapshot) => onEntries(snapshot.docs.filter(isLiveDoc).map(toLogEntry)), onError)
     },
     async recent(limit) {
-      const live: LogEntryRecord[] = []
+      const live: LogEntry[] = []
       let after: QueryDocumentSnapshot | undefined
       while (live.length < limit) {
         const page = query(entries, orderBy('eatenAt', 'desc'), ...(after ? [startAfter(after)] : []), fsLimit(limit))
         const { docs } = await getDocs(page)
-        live.push(...docs.filter(isLiveDoc).map(toRecord))
+        live.push(...docs.filter(isLiveDoc).map(toLogEntry))
         if (docs.length < limit) break
         after = docs[docs.length - 1]
       }
@@ -56,7 +56,7 @@ export function firestoreLogStore(db: Firestore, uid: core.Uid): LogStore {
       await runTransaction(db, async (transaction) => {
         const snapshot = await transaction.get(ref)
         if (!snapshot.exists() || !isLive(snapshot.data())) throw new Error(`No live Log Entry ${id}`)
-        const current = toRecord(snapshot)
+        const current = toLogEntry(snapshot)
         const edited = applyEdit(current, edit)
         transaction.update(ref, {
           servings: edited.servings,
@@ -86,7 +86,7 @@ function toDocument(entry: NewLogEntry): DocumentData {
   return { ...entry, eatenAt: Timestamp.fromDate(entry.eatenAt) }
 }
 
-function toRecord(snapshot: QueryDocumentSnapshot): LogEntryRecord {
+function toLogEntry(snapshot: QueryDocumentSnapshot): LogEntry {
   const data = nutrition.logEntrySchema.parse(snapshot.data())
   const { eatenAt } = data
   return {

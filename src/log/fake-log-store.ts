@@ -1,16 +1,16 @@
 import { nutrition } from 'data-platform'
 import { applyEdit } from './apply-edit.ts'
-import type { LogEntryRecord, LogStore, NewLogEntry, Unsubscribe } from './log-store.ts'
+import type { LogEntry, LogStore, NewLogEntry, Unsubscribe } from './log-store.ts'
 
 interface Watcher {
   readonly start: Date
   readonly end: Date
-  readonly onEntries: (entries: readonly LogEntryRecord[]) => void
+  readonly onEntries: (entries: readonly LogEntry[]) => void
 }
 
 /** An in-memory `LogStore`; the Firestore adapter must pass the same contract. */
 export function fakeLogStore(): LogStore {
-  const entries = new Map<nutrition.LogEntryId, LogEntryRecord>()
+  const entries = new Map<nutrition.LogEntryId, LogEntry>()
   const deleted = new Set<nutrition.LogEntryId>()
   const watchers = new Set<Watcher>()
   let counter = 0
