@@ -76,3 +76,25 @@ describe('LogEntryScreen Meal Type and eaten time', () => {
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
   })
 })
+
+describe('LogEntryScreen delete', () => {
+  it('asks first, then soft deletes and returns to the Day', async () => {
+    const { store, entry, onDone, stored } = await setup()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(confirm).toHaveBeenCalled()
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    expect(await stored()).toBeUndefined()
+    await expect(store.update(entry.id, {})).rejects.toThrow()
+    confirm.mockRestore()
+  })
+
+  it('does nothing when the Member declines', async () => {
+    const { onDone, stored } = await setup()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(onDone).not.toHaveBeenCalled()
+    expect(await stored()).toBeDefined()
+    confirm.mockRestore()
+  })
+})

@@ -44,6 +44,16 @@ export function LogEntryScreen({ store, entry, onDone }: LogEntryScreenProps) {
     }
   }
 
+  async function handleDelete() {
+    if (!confirm(`Delete "${entry.name}"?`)) return
+    try {
+      await store.softDelete(entry.id)
+      onDone()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not delete.')
+    }
+  }
+
   const { kcal, proteinG, carbsG, fatG } = entry.nutrition
   return (
     <main class="screen log-entry">
@@ -88,6 +98,9 @@ export function LogEntryScreen({ store, entry, onDone }: LogEntryScreenProps) {
           Save
         </Button>
       </form>
+      <Button variant="text" destructive onClick={handleDelete}>
+        Delete
+      </Button>
     </main>
   )
 }
