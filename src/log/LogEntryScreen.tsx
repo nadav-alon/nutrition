@@ -22,7 +22,7 @@ export function LogEntryScreen({ store, entry, onDone }: LogEntryScreenProps) {
   const initialEatenText = toLocalInput(entry.eatenAt)
   const [servingsText, setServingsText] = useState(initialServingsText)
   const [mealType, setMealType] = useState(entry.mealType)
-  const [eatenText, setEatenText] = useState(initialEatenText)
+  const [eatenText, setEatenText] = useState<string>(initialEatenText)
   const [error, setError] = useState<string | null>(null)
 
   const parsedServings = Number(servingsText)
