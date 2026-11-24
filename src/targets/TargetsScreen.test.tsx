@@ -48,6 +48,87 @@ describe('TargetsScreen', () => {
     expect(write).not.toHaveBeenCalled()
   })
 
+  it('blocks saving text the number field cannot parse, and counts it as an unsaved change', async () => {
+    const port = fakeTargetsPort()
+    await port.write({ proteinG: nutrition.grams(150) })
+    const write = vi.spyOn(port, 'write')
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    render(<TargetsScreen port={port} onLeave={vi.fn()} />)
+    const field = await screen.findByLabelText('Protein (g)')
+    Object.defineProperty(field, 'validity', { value: { badInput: true }, configurable: true })
+    type('Protein (g)', '')
+    save()
+    expect(screen.getByRole('alert')).toHaveTextContent(/Enter a number/)
+    expect(field).toBeInvalid()
+    expect(write).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(confirm).toHaveBeenCalled()
+  })
+
+  it('reports every invalid field at once', async () => {
+    const port = fakeTargetsPort()
+    const write = vi.spyOn(port, 'write')
+    render(<TargetsScreen port={port} onLeave={vi.fn()} />)
+    await screen.findByLabelText('Protein (g)')
+    type('Protein (g)', '0')
+    type('Fat (g)', '-1')
+    save()
+    expect(screen.getByLabelText('Protein (g)')).toBeInvalid()
+    expect(screen.getByLabelText('Fat (g)')).toBeInvalid()
+    expect(write).not.toHaveBeenCalled()
+  })
+
+  it('follows Targets changed elsewhere while there are no unsaved edits', async () => {
+    const port = fakeTargetsPort()
+    render(<TargetsScreen port={port} onLeave={vi.fn()} />)
+    await screen.findByLabelText('Protein (g)')
+    await port.write({ proteinG: nutrition.grams(180) })
+    await waitFor(() => expect(screen.getByLabelText('Protein (g)')).toHaveValue(180))
+  })
+
+  it('keeps unsaved edits when the Targets change elsewhere', async () => {
+    const port = fakeTargetsPort()
+    render(<TargetsScreen port={port} onLeave={vi.fn()} />)
+    await screen.findByLabelText('Protein (g)')
+    type('Protein (g)', '150')
+    await port.write({ kcal: nutrition.kcal(2000) })
+    await new Promise((resolve) => setTimeout(resolve))
+    expect(screen.getByLabelText('Protein (g)')).toHaveValue(150)
+  })
+
+  it("keeps the form and the Member's edits when the port errors after loading", async () => {
+    let fail: (error: Error) => void = () => {}
+    const port: TargetsPort = {
+      subscribe: (onChange, onError) => {
+        onChange(null)
+        fail = onError
+        return () => {}
+      },
+      write: async () => {},
+    }
+    render(<TargetsScreen port={port} onLeave={vi.fn()} />)
+    await screen.findByLabelText('Protein (g)')
+    type('Protein (g)', '150')
+    fail(new Error('lost connection'))
+    expect(await screen.findByRole('alert')).toHaveTextContent('lost connection')
+    expect(screen.getByLabelText('Protein (g)')).toHaveValue(150)
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument()
+  })
+
+  it('ignores a second Save while the write is in flight', async () => {
+    const port = fakeTargetsPort()
+    let release: () => void = () => {}
+    const write = vi.spyOn(port, 'write').mockReturnValue(new Promise<void>((resolve) => (release = resolve)))
+    render(<TargetsScreen port={port} onLeave={vi.fn()} />)
+    await screen.findByLabelText('Protein (g)')
+    type('Protein (g)', '150')
+    save()
+    save()
+    expect(write).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    release()
+  })
+
   it('writes the filled fields through the port and leaves an empty one unset', async () => {
     const port = fakeTargetsPort()
     await port.write({ kcal: nutrition.kcal(2000), fatG: nutrition.grams(60) })

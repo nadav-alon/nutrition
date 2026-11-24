@@ -1,30 +1,38 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import { nutrition } from 'data-platform'
 import type { Targets, TargetsPort } from './targets-port.ts'
 import { Button } from 'household-ui/ui/Button.tsx'
 import { TextField } from 'household-ui/ui/TextField.tsx'
 
-type FieldKey = 'kcal' | 'proteinG' | 'carbsG' | 'fatG'
+type FieldKey = Extract<'kcal' | 'proteinG' | 'carbsG' | 'fatG', keyof Targets>
 
-const FIELDS: { key: FieldKey; label: string }[] = [
-  { key: 'kcal', label: 'Calories (kcal)' },
-  { key: 'proteinG', label: 'Protein (g)' },
-  { key: 'carbsG', label: 'Carbs (g)' },
-  { key: 'fatG', label: 'Fat (g)' },
+const FIELDS: { key: FieldKey; label: string; toTarget: (value: number) => Targets[FieldKey] }[] = [
+  { key: 'kcal', label: 'Calories (kcal)', toTarget: nutrition.kcal },
+  { key: 'proteinG', label: 'Protein (g)', toTarget: nutrition.grams },
+  { key: 'carbsG', label: 'Carbs (g)', toTarget: nutrition.grams },
+  { key: 'fatG', label: 'Fat (g)', toTarget: nutrition.grams },
 ]
 
 type Draft = Record<FieldKey, string>
 type Errors = Partial<Record<FieldKey, string>>
+/** Fields whose input holds text the number field could not parse, which it reports as empty. */
+type BadInput = Partial<Record<FieldKey, true>>
+
+const notANumber = 'Enter a number, or leave it empty for no Target.'
 
 /** The message for each field holding something other than empty or a number above zero. */
-function validate(draft: Draft): Errors {
+function validate(draft: Draft, badInput: BadInput): Errors {
   const errors: Errors = {}
   for (const { key } of FIELDS) {
+    if (badInput[key] === true) {
+      errors[key] = notANumber
+      continue
+    }
     const text = draft[key].trim()
     if (text === '') continue
     const value = Number(text)
-    if (!Number.isFinite(value)) errors[key] = 'Enter a number, or leave it empty for no Target.'
+    if (!Number.isFinite(value)) errors[key] = notANumber
     else if (value <= 0) errors[key] = 'Must be above zero. Leave it empty for no Target.'
   }
   return errors
@@ -33,14 +41,10 @@ function validate(draft: Draft): Errors {
 /** The Targets a validated draft stands for: an empty field is left out, so it is unset. */
 function toTargets(draft: Draft): Targets {
   const targets: Targets = {}
-  const kcal = draft.kcal.trim()
-  const proteinG = draft.proteinG.trim()
-  const carbsG = draft.carbsG.trim()
-  const fatG = draft.fatG.trim()
-  if (kcal !== '') targets.kcal = nutrition.kcal(Number(kcal))
-  if (proteinG !== '') targets.proteinG = nutrition.grams(Number(proteinG))
-  if (carbsG !== '') targets.carbsG = nutrition.grams(Number(carbsG))
-  if (fatG !== '') targets.fatG = nutrition.grams(Number(fatG))
+  for (const { key, toTarget } of FIELDS) {
+    const text = draft[key].trim()
+    if (text !== '') (targets as Record<FieldKey, unknown>)[key] = toTarget(Number(text))
+  }
   return targets
 }
 
@@ -59,23 +63,28 @@ export function TargetsScreen({ port, onLeave }: TargetsScreenProps) {
   const [saved, setSaved] = useState<Draft | null>(null)
   const [errors, setErrors] = useState<Errors>({})
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const [badInput, setBadInput] = useState<BadInput>({})
+  const [saving, setSaving] = useState(false)
+  const [portError, setPortError] = useState<string | null>(null)
+
+  const hasBadInput = FIELDS.some(({ key }) => badInput[key] === true)
+  const dirty = hasBadInput || (draft !== null && saved !== null && FIELDS.some(({ key }) => draft[key] !== saved[key]))
+  const dirtyRef = useRef(dirty)
+  dirtyRef.current = dirty
 
   useEffect(() => {
-    let first = true
     return port.subscribe(
       (targets) => {
-        if (!first) return
-        first = false
+        setPortError(null)
+        // Unsaved edits win over a change made elsewhere; a form with none follows the port.
+        if (dirtyRef.current) return
         const loaded = Object.fromEntries(FIELDS.map(({ key }) => [key, targets?.[key] === undefined ? '' : String(targets[key])])) as Draft
         setDraft(loaded)
         setSaved(loaded)
       },
-      (error) => setLoadError(error.message),
+      (error) => setPortError(error.message),
     )
   }, [port])
-
-  const dirty = draft !== null && saved !== null && FIELDS.some(({ key }) => draft[key] !== saved[key])
 
   useEffect(() => {
     if (!dirty) return
@@ -84,8 +93,10 @@ export function TargetsScreen({ port, onLeave }: TargetsScreenProps) {
     return () => window.removeEventListener('beforeunload', warn)
   }, [dirty])
 
-  if (loadError !== null) return <main class="screen targets" role="alert">{loadError}</main>
-  if (draft === null) return <main class="screen targets" />
+  if (draft === null) {
+    return portError !== null ? <main class="screen targets" role="alert">{portError}</main> : <main class="screen targets" />
+  }
+  const current = draft
 
   function handleBack() {
     if (!dirty || confirm(discardPrompt)) onLeave()
@@ -93,15 +104,19 @@ export function TargetsScreen({ port, onLeave }: TargetsScreenProps) {
 
   async function handleSubmit(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
-    const found = validate(draft!)
+    if (saving) return
+    const found = validate(current, badInput)
     setErrors(found)
     if (Object.keys(found).length > 0) return
     setSaveError(null)
+    setSaving(true)
     try {
-      await port.write(toTargets(draft!))
-      setSaved(draft)
+      await port.write(toTargets(current))
+      setSaved(current)
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : 'Could not save your Targets.')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -119,11 +134,21 @@ export function TargetsScreen({ port, onLeave }: TargetsScreenProps) {
             inputMode="decimal"
             value={draft[key]}
             error={errors[key]}
-            onInput={(event) => setDraft({ ...draft, [key]: event.currentTarget.value })}
+            onInput={(event) => {
+              const { value, validity } = event.currentTarget
+              setBadInput((previous) => {
+                const next = { ...previous }
+                if (value === '' && validity.badInput) next[key] = true
+                else delete next[key]
+                return next
+              })
+              setDraft({ ...current, [key]: value })
+            }}
           />
         ))}
         {saveError !== null && <p role="alert">{saveError}</p>}
-        <Button type="submit" variant="filled">
+        {portError !== null && <p role="alert">{portError}</p>}
+        <Button type="submit" variant="filled" disabled={saving}>
           Save
         </Button>
       </form>
