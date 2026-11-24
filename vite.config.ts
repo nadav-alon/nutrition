@@ -17,6 +17,7 @@ export default defineConfig({
   plugins: [preact(), Icons({ compiler: 'jsx', jsx: 'preact', scale: 1 }), themeColour(), VitePWA({ registerType: 'autoUpdate', manifest })],
   test: {
     environment: 'jsdom',
+    env: { TZ: 'America/New_York' },
     setupFiles: ['./src/test/setup.ts'],
   },
 })
