@@ -1,5 +1,6 @@
 import { nutrition } from 'data-platform'
 import { applyEdit } from './apply-edit.ts'
+import { servings } from './servings.ts'
 import type { LogEntry, LogStore, NewLogEntry, Unsubscribe } from './log-store.ts'
 
 interface Watcher {
@@ -38,6 +39,8 @@ export function fakeLogStore(): LogStore {
         .slice(0, limit)
     },
     async create(entry: NewLogEntry) {
+      servings(entry.servings)
+      if (entry.name === '') throw new Error('A Log Entry needs a name')
       const id = nutrition.logEntryId(`entry-${counter++}`)
       entries.set(id, { ...entry, id })
       notify()

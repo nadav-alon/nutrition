@@ -77,6 +77,15 @@ export function logStoreContract(name: string, makeStore: () => Promise<LogStore
         day.unsubscribe()
       })
 
+      it('rejects an entry whose servings are not positive or whose name is empty', async () => {
+        await expect(store.create({ ...quickToast, servings: 0 as number as Servings })).rejects.toThrow()
+        await expect(store.create({ ...quickToast, servings: -1 as number as Servings })).rejects.toThrow()
+        await expect(store.create({ ...quickToast, name: '' })).rejects.toThrow()
+        const day = watchDay(store)
+        await day.names([])
+        day.unsubscribe()
+      })
+
       it('returns the entries eaten from start up to, not including, end, oldest first', async () => {
         await store.create(schnitzel)
         await store.create(quickToast)
