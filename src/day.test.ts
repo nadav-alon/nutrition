@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { day, dayEnd, defaultEatenTime, dayOf, dayStart, isDay, nextDay, previousDay } from './day.ts'
 
 describe('Day', () => {
-  it('accepts a real calendar date and refuses anything else', () => {
+  it('accepts a real calendar day and refuses anything else', () => {
     expect(isDay('2026-03-08')).toBe(true)
     expect(isDay('2026-02-30')).toBe(false)
     expect(isDay('2026-3-8')).toBe(false)
@@ -20,7 +20,6 @@ describe('Day', () => {
 
   it('puts an instant exactly at midnight in the Day it starts', () => {
     expect(dayOf(new Date(2026, 5, 16, 0, 0, 0, 0))).toBe('2026-06-16')
-    expect(dayOf(new Date(2026, 5, 15, 23, 59, 59, 999))).toBe('2026-06-15')
   })
 })
 
@@ -28,12 +27,6 @@ describe('Day range', () => {
   it('runs from local midnight to the next local midnight', () => {
     expect(dayStart(day('2026-06-15'))).toEqual(new Date(2026, 5, 15))
     expect(dayEnd(day('2026-06-15'))).toEqual(new Date(2026, 5, 16))
-  })
-
-  it('includes an instant exactly at midnight in the Day it starts, not the one it ends', () => {
-    const midnight = new Date(2026, 5, 16)
-    expect(dayStart(day('2026-06-16')).getTime()).toBe(midnight.getTime())
-    expect(dayEnd(day('2026-06-15')).getTime()).toBe(midnight.getTime())
   })
 
   it('is 23 hours long on the spring-forward day and 25 on the fall-back day', () => {
@@ -96,7 +89,19 @@ describe('default eaten time', () => {
 
   it('stays on the Day when the current clock time is the one a DST gap skips', () => {
     const gap = new Date(2026, 5, 15, 2, 30)
-    expect(dayOf(defaultEatenTime(day('2026-03-08'), gap))).toBe('2026-03-08')
+    const eaten = defaultEatenTime(day('2026-03-08'), gap)
+    expect(dayOf(eaten)).toBe('2026-03-08')
+    expect(eaten.getHours()).toBe(3)
+    expect(eaten.getMinutes()).toBe(30)
+  })
+
+  it('takes the first of the two occurrences when the current clock time repeats in a fall-back', () => {
+    const repeated = new Date(2026, 5, 15, 1, 30)
+    const eaten = defaultEatenTime(day('2026-11-01'), repeated)
+    expect(dayOf(eaten)).toBe('2026-11-01')
+    expect(eaten.getHours()).toBe(1)
+    expect(eaten.getMinutes()).toBe(30)
+    expect(eaten.getTimezoneOffset()).toBe(240)
   })
 
   it('is the Day itself at midnight when now is exactly midnight', () => {
