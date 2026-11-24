@@ -3,11 +3,14 @@ import {
   addDoc,
   collection,
   doc,
+  getDocs,
+  limit as fsLimit,
   onSnapshot,
   orderBy,
   query,
   runTransaction,
   serverTimestamp,
+  startAfter,
   where,
   type DocumentData,
   type Firestore,
@@ -30,6 +33,18 @@ export function firestoreLogStore(db: Firestore, uid: core.Uid): LogStore {
         orderBy('eatenAt'),
       )
       return onSnapshot(day, (snapshot) => onEntries(snapshot.docs.filter(isLiveDoc).map(toRecord)), onError)
+    },
+    async recent(limit) {
+      const live: LogEntryRecord[] = []
+      let after: QueryDocumentSnapshot | undefined
+      while (live.length < limit) {
+        const page = query(entries, orderBy('eatenAt', 'desc'), ...(after ? [startAfter(after)] : []), fsLimit(limit))
+        const { docs } = await getDocs(page)
+        live.push(...docs.filter(isLiveDoc).map(toRecord))
+        if (docs.length < limit) break
+        after = docs[docs.length - 1]
+      }
+      return live.slice(0, limit)
     },
     async create(entry: NewLogEntry) {
       const created = await addDoc(entries, toDocument(entry))

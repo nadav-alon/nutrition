@@ -33,6 +33,8 @@ export interface LogStore {
     onEntries: (entries: readonly LogEntryRecord[]) => void,
     onError?: (error: Error) => void,
   ): Unsubscribe
+  /** The most recent live entries across Days, newest first, at most `limit`; it feeds Recents. */
+  recent(limit: number): Promise<readonly LogEntryRecord[]>
   create(entry: NewLogEntry): Promise<nutrition.LogEntryId>
   /** Soft deletes an entry; it is never returned again. Deleting one already deleted is a no-op. */
   softDelete(id: nutrition.LogEntryId): Promise<void>

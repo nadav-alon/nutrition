@@ -30,6 +30,12 @@ export function fakeLogStore(): LogStore {
       onEntries(inDay(watcher))
       return () => watchers.delete(watcher)
     },
+    async recent(limit) {
+      return [...entries.values()]
+        .filter((entry) => !deleted.has(entry.id))
+        .sort((a, b) => b.eatenAt.getTime() - a.eatenAt.getTime())
+        .slice(0, limit)
+    },
     async create(entry: NewLogEntry) {
       const id = nutrition.logEntryId(`entry-${counter++}`)
       entries.set(id, { ...entry, id })

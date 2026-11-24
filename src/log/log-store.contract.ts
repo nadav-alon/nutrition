@@ -100,6 +100,31 @@ export function logStoreContract(name: string, makeStore: () => Promise<LogStore
       })
     })
 
+    describe('reading the most recent entries', () => {
+      it('is empty before anything is logged', async () => {
+        expect(await store.recent(5)).toEqual([])
+      })
+
+      it('returns entries across Days, newest first, up to the limit', async () => {
+        await store.create({ ...quickToast, name: 'Monday', eatenAt: new Date('2026-03-09T08:00:00Z') })
+        await store.create({ ...quickToast, name: 'Wednesday', eatenAt: new Date('2026-03-11T08:00:00Z') })
+        await store.create({ ...quickToast, name: 'Tuesday', eatenAt: new Date('2026-03-10T08:00:00Z') })
+        const names = async (limit: number) => (await store.recent(limit)).map((entry) => entry.name)
+        expect(await names(2)).toEqual(['Wednesday', 'Tuesday'])
+        expect(await names(10)).toEqual(['Wednesday', 'Tuesday', 'Monday'])
+      })
+
+      it('skips deleted entries and still fills the limit from older ones', async () => {
+        await store.create({ ...quickToast, name: 'Old', eatenAt: new Date('2026-03-08T08:00:00Z') })
+        const gone = await store.create({ ...quickToast, name: 'Gone', eatenAt: new Date('2026-03-09T08:00:00Z') })
+        const alsoGone = await store.create({ ...quickToast, name: 'Also gone', eatenAt: new Date('2026-03-10T08:00:00Z') })
+        await store.create({ ...quickToast, name: 'New', eatenAt: new Date('2026-03-11T08:00:00Z') })
+        await store.softDelete(gone)
+        await store.softDelete(alsoGone)
+        expect((await store.recent(2)).map((entry) => entry.name)).toEqual(['New', 'Old'])
+      })
+    })
+
     describe('soft deleting', () => {
       it('removes the entry from its Day, and leaves the others', async () => {
         const id = await store.create(schnitzel)
