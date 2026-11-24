@@ -10,21 +10,23 @@ import { AlertBanner } from 'household-ui/ui/AlertBanner.tsx'
 import { Button } from 'household-ui/ui/Button.tsx'
 import { CentredCard } from 'household-ui/ui/CentredCard.tsx'
 
-type RootState = Pick<ConfigResolution, 'config' | 'error' | 'proposed'> & { kit: LocalKit | undefined }
+type RootState = Pick<ConfigResolution, 'config' | 'error' | 'proposed'>
 
 /** Resolves the config once, before first paint, and strips a consumed `#config=` fragment. */
 function initialState(): RootState {
   const emulator = emulatorConfig()
-  const kit = emulatorKit()
-  if (emulator !== null) return { config: emulator, error: null, proposed: null, kit }
+  if (emulator !== null) return { config: emulator, error: null, proposed: null }
   const { config, error, proposed, consumed } = resolveConfig(location.hash)
   if (consumed) history.replaceState(null, '', location.pathname + location.search)
-  return { config, error, proposed, kit: undefined }
+  return { config, error, proposed }
 }
 
 /** The app's entry: config, then sign-in and membership, then the app. */
 export function Root() {
-  const [{ config, error, proposed, kit }, setState] = useState(initialState)
+  const [{ config, error, proposed }, setState] = useState(initialState)
+  const kit = emulatorKit()
+  /** Moves on with `next` as the config, with no error and no link left to answer. */
+  const settle = (next: FirebaseWebConfig | null) => setState({ config: next, error: null, proposed: null })
 
   if (proposed !== null) {
     return (
@@ -37,12 +39,12 @@ export function Root() {
           variant="filled"
           onClick={() => {
             saveFirebaseWebConfig(proposed)
-            setState({ config: proposed, error: null, proposed: null, kit })
+            settle(proposed)
           }}
         >
           Switch to {proposed.projectId}
         </Button>
-        <Button variant="tonal" onClick={() => setState({ config, error: null, proposed: null, kit })}>
+        <Button variant="tonal" onClick={() => settle(config)}>
           Keep the current Household
         </Button>
       </CentredCard>
@@ -55,7 +57,7 @@ export function Root() {
         initialError={error}
         onConfigured={(next) => {
           saveFirebaseWebConfig(next)
-          setState({ config: next, error: null, proposed: null, kit })
+          settle(next)
         }}
       />
     )
@@ -65,7 +67,7 @@ export function Root() {
       {error !== null && (
         <AlertBanner
           message={`${error} The link was ignored.`}
-          onDismiss={() => setState({ config, error: null, proposed: null, kit })}
+          onDismiss={() => settle(config)}
         />
       )}
       <Connected config={config} kit={kit} />
