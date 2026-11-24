@@ -43,7 +43,7 @@ _Avoid_: history, favourites
 
 **Meal Type**:
 Breakfast, lunch, dinner or snack. Guessed from the local time eaten (before 11:00 breakfast, before
-16:00 lunch, before 21:30 dinner, otherwise snack), always editable.
+16:00 lunch, until 21:30 dinner, after that snack), always editable.
 _Avoid_: meal, category
 
 **Day**:
