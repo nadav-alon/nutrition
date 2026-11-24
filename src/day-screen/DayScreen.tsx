@@ -1,5 +1,6 @@
 import { nutrition } from 'data-platform'
 import { useEffect, useState } from 'preact/hooks'
+import { Button } from 'household-ui/ui/Button.tsx'
 import { IconButton } from 'household-ui/ui/IconButton.tsx'
 import { ListRow } from 'household-ui/ui/ListRow.tsx'
 import ChevronLeft from '~icons/material-symbols/chevron-left'
@@ -27,7 +28,7 @@ const MEAL_TYPE_LABELS: Record<nutrition.MealType, string> = {
 }
 
 /** One Day's Log Entries against the Member's Targets; today by default, stepping to earlier Days. */
-export function DayScreen({ log, now, onOpenEntry }: DayScreenProps) {
+export function DayScreen({ log, now, onOpenEntry, onLog }: DayScreenProps) {
   const today = dayOf(now)
   const [viewed, setViewed] = useState<Day>(today)
   const [entries, setEntries] = useState<readonly LogEntry[]>([])
@@ -70,6 +71,9 @@ export function DayScreen({ log, now, onOpenEntry }: DayScreenProps) {
           )
         })
       )}
+      <Button variant="filled" onClick={() => onLog(viewed)}>
+        Log
+      </Button>
     </section>
   )
 }

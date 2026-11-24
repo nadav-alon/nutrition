@@ -93,3 +93,15 @@ describe('DayScreen entries', () => {
     expect(screen.queryByRole('group')).not.toBeInTheDocument()
   })
 })
+
+describe('DayScreen Log action', () => {
+  it('opens logging for the viewed Day', () => {
+    const onLog = vi.fn()
+    renderScreen({ onLog })
+    fireEvent.click(screen.getByRole('button', { name: 'Log' }))
+    expect(onLog).toHaveBeenLastCalledWith('2026-03-10')
+    fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Log' }))
+    expect(onLog).toHaveBeenLastCalledWith('2026-03-09')
+  })
+})
