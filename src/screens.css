@@ -1,0 +1,32 @@
+/* Layout shared by the screens inside the app's top app bar (the pre-Household screens sit on household-ui's CentredCard instead), written for a 360px phone first: one centred column that never outgrows the viewport. */
+.screen {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--md-sys-spacing-4);
+  width: 100%;
+  max-width: var(--shell-content-width);
+  min-width: 0;
+  margin: 0 auto;
+  padding: var(--md-sys-spacing-4);
+  overflow-wrap: anywhere;
+}
+
+/* A column of controls inside a card, which pads itself. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--md-sys-spacing-4);
+}
+
+/* The signed-out screen: the app's line and its one action, centred, with a tap target of at least 48px. */
+main.screen.sign-in {
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100dvh - 4rem); /* the viewport less the TopAppBar */
+  text-align: center;
+}
+
+main.screen.sign-in .ui-button {
+  min-height: 3rem;
+}
