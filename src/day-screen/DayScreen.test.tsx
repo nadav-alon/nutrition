@@ -1,9 +1,9 @@
-import { fireEvent, render, screen, within } from '@testing-library/preact'
+import { act, fireEvent, render, screen, within } from '@testing-library/preact'
 import { describe, expect, it, vi } from 'vitest'
 import { nutrition } from 'data-platform'
 import type { TargetsPort } from '../targets/targets-port.ts'
 import { servings } from '../log/servings.ts'
-import type { NewLogEntry } from '../log/log-store.ts'
+import type { LogStore, NewLogEntry } from '../log/log-store.ts'
 import { fakeLogStore } from '../log/fake-log-store.ts'
 import { fakeTargetsPort } from '../targets/fake-targets-port.ts'
 import { DayScreen, type DayScreenProps } from './DayScreen.tsx'
@@ -163,5 +163,73 @@ describe('DayScreen targets', () => {
     }
     renderScreen({ targets })
     expect(screen.getByText('Targets unavailable.')).toBeInTheDocument()
+  })
+})
+
+describe('DayScreen robustness', () => {
+  const bar = (name: string) => screen.getByRole('meter', { name })
+
+  it('rounds totals and differences for display', async () => {
+    const log = fakeLogStore()
+    const piece = (name: string) => ({
+      ...entry(name, 'lunch', 12),
+      nutrition: { kcal: kcal(100.04), proteinG: grams(0.1), carbsG: grams(0.2), fatG: grams(10) },
+    })
+    await log.create(piece('A'))
+    await log.create(piece('B'))
+    await log.create(piece('C'))
+    const targets = fakeTargetsPort()
+    await targets.write({ proteinG: grams(1), carbsG: grams(0.5) })
+    renderScreen({ log, targets })
+    expect(within(bar('Protein')).getByText('0.3 g eaten · 0.7 g left')).toBeInTheDocument()
+    expect(within(bar('Carbs')).getByText('0.6 g eaten · 0.1 g over')).toBeInTheDocument()
+    expect(within(bar('Fat')).getByText('30 g eaten')).toBeInTheDocument()
+    expect(screen.getAllByText('1 serving · 100 kcal')).toHaveLength(3)
+  })
+
+  it('renders no progress bar for a Target of 0', async () => {
+    const targets = fakeTargetsPort()
+    await targets.write({ kcal: kcal(0) })
+    renderScreen({ targets })
+    expect(within(bar('Calories')).getByText('0 kcal eaten · 0 kcal left')).toBeInTheDocument()
+    expect(bar('Calories').querySelector('progress')).toBeNull()
+  })
+
+  it('says so, not "Nothing logged", when the Log cannot be read', () => {
+    const log: LogStore = {
+      ...fakeLogStore(),
+      watchDay: (_start, _end, _onEntries, onError) => {
+        onError?.(new Error('offline'))
+        return () => {}
+      },
+    }
+    renderScreen({ log })
+    expect(screen.getByText('Log unavailable.')).toBeInTheDocument()
+    expect(screen.queryByText('Nothing logged this day.')).not.toBeInTheDocument()
+  })
+
+  it('shows loading, not the empty state or the previous Day, until the snapshot arrives', () => {
+    const base = fakeLogStore()
+    const pending: Array<() => void> = []
+    const log: LogStore = {
+      ...base,
+      watchDay: (start, end, onEntries, onError) => {
+        let live = true
+        pending.push(() => {
+          if (live) base.watchDay(start, end, onEntries, onError)
+        })
+        return () => {
+          live = false
+        }
+      },
+    }
+    renderScreen({ log })
+    expect(screen.getByText('Loading…')).toBeInTheDocument()
+    expect(screen.queryByText('Nothing logged this day.')).not.toBeInTheDocument()
+    act(() => pending.splice(0).forEach((deliver) => deliver()))
+    expect(screen.getByText('Nothing logged this day.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
+    expect(screen.getByText('Loading…')).toBeInTheDocument()
+    expect(screen.queryByRole('meter', { name: 'Calories' })).not.toBeInTheDocument()
   })
 })
