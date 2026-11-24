@@ -35,4 +35,10 @@ describe('recents', () => {
   it('does not merge a Food entry with a Quick Entry of the same name', () => {
     expect(recents([food('Cake', 'a'), quick('Cake')])).toHaveLength(2)
   })
+
+  it('keeps at most 10, the newest', () => {
+    const result = recents(Array.from({ length: 12 }, (_, i) => quick(`Thing ${i}`)))
+    expect(result).toHaveLength(10)
+    expect(result[9]?.name).toBe('Thing 9')
+  })
 })
