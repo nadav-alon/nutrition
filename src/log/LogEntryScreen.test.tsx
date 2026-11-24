@@ -3,13 +3,13 @@ import { describe, expect, it, vi } from 'vitest'
 import { fakeLogStore } from './fake-log-store.ts'
 import { LogEntryScreen } from './LogEntryScreen.tsx'
 import { schnitzel } from './log-store.contract.ts'
-import type { LogEntry } from './log-store.ts'
+import type { LogEntry, NewLogEntry } from './log-store.ts'
 
 /** A fake store holding the schnitzel entry, with the entry as the screen is handed it. */
-async function setup() {
+async function setup(logged: NewLogEntry = schnitzel) {
   const store = fakeLogStore()
-  const id = await store.create(schnitzel)
-  const entry: LogEntry = { ...schnitzel, id }
+  const id = await store.create(logged)
+  const entry: LogEntry = { ...logged, id }
   const onDone = vi.fn()
   const view = render(<LogEntryScreen store={store} entry={entry} onDone={onDone} />)
   const stored = async () => {
@@ -40,6 +40,25 @@ describe('LogEntryScreen', () => {
     const saved = await stored()
     expect(saved?.servings).toBe(3)
     expect(saved?.nutrition.kcal).toBe(1300)
+  })
+
+  it('is not dirty on open for an entry eaten at a time with seconds', async () => {
+    const { onDone } = await setup({ ...schnitzel, eatenAt: new Date('2026-03-10T12:30:45.678Z') })
+    const confirm = vi.spyOn(window, 'confirm')
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(confirm).not.toHaveBeenCalled()
+    expect(onDone).toHaveBeenCalled()
+    confirm.mockRestore()
+  })
+
+  it('keeps the eaten time to the second when only servings change', async () => {
+    const eatenAt = new Date('2026-03-10T12:30:45.678Z')
+    const { stored, onDone } = await setup({ ...schnitzel, eatenAt })
+    fireEvent.input(screen.getByLabelText('Servings'), { target: { value: '2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    expect((await stored())?.eatenAt).toEqual(eatenAt)
   })
 
   it('does not save servings that are not positive', async () => {
@@ -119,6 +138,20 @@ describe('LogEntryScreen leaving', () => {
     confirm.mockReturnValue(true)
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
     expect(onDone).toHaveBeenCalled()
+    confirm.mockRestore()
+  })
+
+  it.each([
+    ['servings of 0', 'Servings', '0'],
+    ['cleared servings', 'Servings', ''],
+    ['a cleared eaten time', 'Eaten at', ''],
+  ])('asks before leaving with %s', async (_name, label, value) => {
+    const { onDone } = await setup()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    fireEvent.input(screen.getByLabelText(label), { target: { value } })
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(confirm).toHaveBeenCalled()
+    expect(onDone).not.toHaveBeenCalled()
     confirm.mockRestore()
   })
 

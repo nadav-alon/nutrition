@@ -18,9 +18,11 @@ export interface LogEntryScreenProps {
 
 /** One logged entry: its snapshot name and totals read-only, with servings, Meal Type and eaten time editable. */
 export function LogEntryScreen({ store, entry, onDone }: LogEntryScreenProps) {
-  const [servingsText, setServingsText] = useState(String(entry.servings))
+  const initialServingsText = String(entry.servings)
+  const initialEatenText = toLocalInput(entry.eatenAt)
+  const [servingsText, setServingsText] = useState(initialServingsText)
   const [mealType, setMealType] = useState(entry.mealType)
-  const [eatenText, setEatenText] = useState(toLocalInput(entry.eatenAt))
+  const [eatenText, setEatenText] = useState(initialEatenText)
   const [error, setError] = useState<string | null>(null)
 
   const parsedServings = Number(servingsText)
@@ -30,10 +32,12 @@ export function LogEntryScreen({ store, entry, onDone }: LogEntryScreenProps) {
   const edit: LogEntryEdit = {
     ...(servingsValid && parsedServings !== entry.servings && { servings: toServings(parsedServings) }),
     ...(mealType !== entry.mealType && { mealType }),
-    ...(parsedEatenAt && parsedEatenAt.getTime() !== entry.eatenAt.getTime() && { eatenAt: parsedEatenAt }),
+    ...(parsedEatenAt && eatenText !== initialEatenText && { eatenAt: parsedEatenAt }),
   }
+  // Dirty is keyed on the raw field text, so an invalid or cleared field still counts as unsaved.
+  const dirty = servingsText !== initialServingsText || mealType !== entry.mealType || eatenText !== initialEatenText
   const canSave = servingsValid && parsedEatenAt !== undefined && Object.keys(edit).length > 0
-  const { confirmLeave } = useLeaveGuard(Object.keys(edit).length > 0)
+  const { confirmLeave } = useLeaveGuard(dirty)
 
   async function handleSubmit(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
