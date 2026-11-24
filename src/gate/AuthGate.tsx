@@ -40,9 +40,9 @@ export function AuthGate({ client, children }: AuthGateProps) {
 
   const resolveMembership = useCallback(
     async (user: AuthUser) => {
-      const mine = ++generation.current
+      const lookupGeneration = ++generation.current
       const setIfCurrent = (next: GateState) => {
-        if (mine === generation.current) setState(next)
+        if (lookupGeneration === generation.current) setState(next)
       }
       try {
         if (!(await householdExists(client.db))) return setIfCurrent({ status: 'unclaimed', user })
