@@ -17,7 +17,7 @@ export type ConfigResolution = {
   readonly consumed: boolean
   /**
    * A link's config that differs from the stored one. It is not saved: accepting it repoints every
-   * app on this origin, the Catalogue included, so the caller asks first and then `acceptConfig`s.
+   * app on this origin, the Catalogue included, so the caller asks first and then saves it with `saveFirebaseWebConfig`.
    */
   readonly proposed: FirebaseWebConfig | null
 }

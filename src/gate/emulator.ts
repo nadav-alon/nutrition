@@ -1,8 +1,8 @@
 import { firebaseWebConfig, type FirebaseWebConfig, type LocalKit } from 'data-platform/client'
 import { LOCAL_PROJECT_ID, localKit } from 'data-platform/local'
 
-/** The Vite mode (`vite --mode emulator`) that runs the app against the local kit; `npm run ux` serves it, and `dev:local` in package.json must name the same mode. */
-export const EMULATOR_MODE = 'emulator'
+/** The Vite mode (`vite --mode emulator`) that runs the app against the local kit; `dev:local` in package.json serves it and must name the same mode. */
+const EMULATOR_MODE = 'emulator'
 
 /**
  * The local kit in the `emulator` Vite mode, or `undefined` in every other mode, so `initFirebase`
