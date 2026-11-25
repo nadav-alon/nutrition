@@ -4,6 +4,7 @@ import { nutrition } from 'data-platform'
 import { Button } from 'household-ui/ui/Button.tsx'
 import { TextField } from 'household-ui/ui/TextField.tsx'
 import { errorMessage } from '../error-message.ts'
+import { useLeaveGuard } from '../log/use-leave-guard.ts'
 import type { FoodChanges, FoodFields, Foods, SavedFood } from '../foods/foods.ts'
 
 type MacroKey = keyof nutrition.Nutrition
@@ -26,25 +27,41 @@ export interface FoodFormProps {
   foods: Foods
   /** The Food being edited; without one the form adds a new Food. */
   food?: SavedFood
-  /** Called when the form is done: after a save, or when the Member backs out. */
+  /** Called when the form is done: after a save or delete, or when the Member backs out, which with unsaved changes needs their agreement to discard them. */
   onDone: () => void
 }
 
 /** The form for a Food's fields: name, place, serving label, per-Serving Nutrition and whether it is Estimated. */
 export function FoodForm({ foods, food, onDone }: FoodFormProps) {
-  const [name, setName] = useState(food?.name ?? '')
-  const [place, setPlace] = useState(food?.place ?? '')
-  const [servingLabel, setServingLabel] = useState(food?.servingLabel ?? '')
-  const [macros, setMacros] = useState<Record<MacroKey, string>>({
-    kcal: food === undefined ? '' : String(food.perServing.kcal),
-    proteinG: food === undefined ? '' : String(food.perServing.proteinG),
-    carbsG: food === undefined ? '' : String(food.perServing.carbsG),
-    fatG: food === undefined ? '' : String(food.perServing.fatG),
-  })
-  const [estimated, setEstimated] = useState(food?.estimated ?? false)
+  /** The fields as loaded, which unsaved changes are measured against. */
+  const initial: { name: string; place: string; servingLabel: string; macros: Record<MacroKey, string>; estimated: boolean } = {
+    name: food?.name ?? '',
+    place: food?.place ?? '',
+    servingLabel: food?.servingLabel ?? '',
+    macros: {
+      kcal: food === undefined ? '' : String(food.perServing.kcal),
+      proteinG: food === undefined ? '' : String(food.perServing.proteinG),
+      carbsG: food === undefined ? '' : String(food.perServing.carbsG),
+      fatG: food === undefined ? '' : String(food.perServing.fatG),
+    },
+    estimated: food?.estimated ?? false,
+  }
+  const [name, setName] = useState(initial.name)
+  const [place, setPlace] = useState(initial.place)
+  const [servingLabel, setServingLabel] = useState(initial.servingLabel)
+  const [macros, setMacros] = useState<Record<MacroKey, string>>(initial.macros)
+  const [estimated, setEstimated] = useState(initial.estimated)
   const [errors, setErrors] = useState<Errors>({})
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+
+  const dirty =
+    name !== initial.name ||
+    place !== initial.place ||
+    servingLabel !== initial.servingLabel ||
+    estimated !== initial.estimated ||
+    MACROS.some(({ key }) => macros[key] !== initial.macros[key])
+  const { confirmLeave } = useLeaveGuard(dirty)
 
   /** The message for each field that cannot be saved, or the Food the fields stand for when all can. */
   function parse(): { errors: Errors } | { fields: FoodFields } {
@@ -109,7 +126,7 @@ export function FoodForm({ foods, food, onDone }: FoodFormProps) {
 
   return (
     <main class="screen food-form">
-      <Button variant="text" onClick={onDone}>
+      <Button variant="text" onClick={() => confirmLeave() && onDone()}>
         Back
       </Button>
       <form class="stack" noValidate onSubmit={handleSubmit}>

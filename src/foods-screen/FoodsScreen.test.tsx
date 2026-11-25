@@ -249,3 +249,58 @@ describe('FoodsScreen delete', () => {
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('offline'))
   })
 })
+
+describe('FoodsScreen leaving the form', () => {
+  async function opened() {
+    const foods = fakeFoods()
+    await foods.add(schnitzel)
+    render(<FoodsScreen foods={foods} />)
+    fireEvent.click(await screen.findByRole('button', { name: /Canteen schnitzel/ }))
+  }
+
+  it('goes back to the list without asking when nothing changed', async () => {
+    const confirm = vi.spyOn(window, 'confirm')
+    await opened()
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(confirm).not.toHaveBeenCalled()
+    expect(await screen.findByRole('listitem')).toBeInTheDocument()
+  })
+
+  it('asks before leaving with unsaved changes, and stays when the Member declines', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    await opened()
+    fill('Place', 'Home')
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(confirm).toHaveBeenCalled()
+    expect(screen.getByLabelText('Place')).toHaveValue('Home')
+  })
+
+  it('discards the changes when the Member agrees', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    await opened()
+    fill('Place', 'Home')
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(await screen.findByRole('listitem')).toHaveTextContent('Work canteen')
+  })
+
+  it('counts a half-filled new Food as unsaved', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    render(<FoodsScreen foods={fakeFoods()} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Add food' }))
+    fill('Name', 'Apple')
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(confirm).toHaveBeenCalled()
+  })
+
+  it('raises the browser warning on unload only while there are unsaved changes', async () => {
+    await opened()
+    const unload = () => {
+      const event = new Event('beforeunload', { cancelable: true })
+      window.dispatchEvent(event)
+      return event.defaultPrevented
+    }
+    expect(unload()).toBe(false)
+    fill('Place', 'Home')
+    await waitFor(() => expect(unload()).toBe(true))
+  })
+})
