@@ -306,6 +306,26 @@ describe('FoodsScreen leaving the form', () => {
     expect(confirm).toHaveBeenCalled()
   })
 
+  it('counts unparseable text in a number field as unsaved, and blocks saving it', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const foods = fakeFoods()
+    const add = vi.spyOn(foods, 'add')
+    render(<FoodsScreen foods={foods} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Add food' }))
+    const field = screen.getByLabelText('Protein (g)')
+    Object.defineProperty(field, 'validity', { value: { badInput: true }, configurable: true })
+    fill('Protein (g)', '')
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(confirm).toHaveBeenCalled()
+    fill('Name', 'Apple')
+    fill('Calories (kcal)', '95')
+    fill('Carbs (g)', '25')
+    fill('Fat (g)', '0')
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(field).toBeInvalid()
+    expect(add).not.toHaveBeenCalled()
+  })
+
   it('raises the browser warning on unload only while there are unsaved changes', async () => {
     await opened()
     const unload = () => {
