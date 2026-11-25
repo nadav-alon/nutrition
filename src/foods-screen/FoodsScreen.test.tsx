@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/preact'
 import { describe, expect, it } from 'vitest'
+import type { Foods } from '../foods/foods.ts'
 import { fakeFoods } from '../foods/fake-foods.ts'
 import { apple, schnitzel } from '../foods/foods.contract.ts'
 import { FoodsScreen } from './FoodsScreen.tsx'
@@ -26,8 +27,14 @@ describe('FoodsScreen list', () => {
   })
 
   it('shows a listing failure', async () => {
-    const foods = { ...fakeFoods(), watch: (_l: unknown, onError?: (e: Error) => void) => (onError?.(new Error('boom')), () => {}) }
-    render(<FoodsScreen foods={foods as never} />)
+    const foods: Foods = {
+      ...fakeFoods(),
+      watch(_listener, onError) {
+        onError?.(new Error('boom'))
+        return () => {}
+      },
+    }
+    render(<FoodsScreen foods={foods} />)
     expect(await screen.findByRole('alert')).toHaveTextContent('boom')
   })
 })
