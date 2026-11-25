@@ -7,6 +7,7 @@ import type { Foods, SavedFood } from '../foods/foods.ts'
 import type { LogStore } from '../log/log-store.ts'
 import { recents, type Recent } from '../log/recents.ts'
 import { ConfirmStep, type Picked } from './ConfirmStep.tsx'
+import { QuickEntryForm } from './QuickEntryForm.tsx'
 
 /** How many of the newest Log Entries Recents are drawn from; enough that duplicates still leave `MAX_RECENTS` distinct ones. */
 const RECENT_ENTRY_WINDOW = 100
@@ -32,6 +33,7 @@ function matches(food: SavedFood, query: string): boolean {
 /** Logging one thing on a Day: a Recent, a saved Food, or a Quick Entry. */
 export function LogScreen({ log, foods, day, now, onDone }: LogScreenProps) {
   const [picked, setPicked] = useState<Picked | null>(null)
+  const [quick, setQuick] = useState(false)
   const [savedFoods, setSavedFoods] = useState<readonly SavedFood[]>([])
   const [recentEntries, setRecentEntries] = useState<Awaited<ReturnType<LogStore['recent']>>>([])
   useEffect(() => foods.watch(setSavedFoods), [foods])
@@ -69,12 +71,18 @@ export function LogScreen({ log, foods, day, now, onDone }: LogScreenProps) {
   if (picked !== null) {
     return <ConfirmStep log={log} picked={picked} day={day} now={now} onSaved={onDone} onBack={() => setPicked(null)} />
   }
+  if (quick) {
+    return <QuickEntryForm log={log} day={day} now={now} onSaved={onDone} onBack={() => setQuick(false)} />
+  }
   return (
     <main class="screen log-screen">
       <Button variant="text" onClick={onDone}>
         Back
       </Button>
       <h2>Log</h2>
+      <Button variant="tonal" onClick={() => setQuick(true)}>
+        Quick entry
+      </Button>
       <TextField
         label="Search foods"
         type="search"

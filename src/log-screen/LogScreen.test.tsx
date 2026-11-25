@@ -168,3 +168,73 @@ describe('LogScreen confirm step', () => {
     expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
   })
 })
+
+/** Opens the Quick Entry form and fills its name and macros. */
+function fillQuick(name: string, macros: { kcal: string; protein: string; carbs: string; fat: string }) {
+  fireEvent.click(screen.getByRole('button', { name: 'Quick entry' }))
+  fireEvent.input(screen.getByLabelText('Name'), { target: { value: name } })
+  fireEvent.input(screen.getByLabelText('Calories (kcal)'), { target: { value: macros.kcal } })
+  fireEvent.input(screen.getByLabelText('Protein (g)'), { target: { value: macros.protein } })
+  fireEvent.input(screen.getByLabelText('Carbs (g)'), { target: { value: macros.carbs } })
+  fireEvent.input(screen.getByLabelText('Fat (g)'), { target: { value: macros.fat } })
+}
+
+const apple = { kcal: '95', protein: '0.5', carbs: '25', fat: '0.3' }
+
+describe('LogScreen Quick Entry', () => {
+  it('logs a Quick Entry with per-Serving Nutrition × servings and the confirm fields', async () => {
+    const { log, onDone } = await setup({ withRecents: false })
+    fillQuick('  Apple ', apple)
+    fireEvent.input(screen.getByLabelText('Servings'), { target: { value: '2' } })
+    expect(screen.getByLabelText('Meal type')).toHaveValue('lunch')
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    expect(entriesOn(log, TODAY)).toEqual([
+      expect.objectContaining({
+        name: 'Apple',
+        source: { kind: 'quick' },
+        servings: 2,
+        mealType: 'lunch',
+        eatenAt: NOW,
+        nutrition: { kcal: 190, proteinG: 1, carbsG: 50, fatG: 0.6 },
+      }),
+    ])
+  })
+
+  it('blocks saving an empty name with a message', async () => {
+    const { log, onDone } = await setup({ withRecents: false })
+    fillQuick('   ', apple)
+    expect(screen.getByText('Enter a name.')).toBeInTheDocument()
+    fireEvent.submit(screen.getByRole('button', { name: 'Save' }))
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    expect(onDone).not.toHaveBeenCalled()
+    expect(entriesOn(log, TODAY)).toEqual([])
+  })
+
+  it('blocks saving a negative macro with a message', async () => {
+    const { log, onDone } = await setup({ withRecents: false })
+    fillQuick('Apple', { ...apple, fat: '-1' })
+    expect(screen.getByText('Must not be negative.')).toBeInTheDocument()
+    fireEvent.submit(screen.getByRole('button', { name: 'Save' }))
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    expect(onDone).not.toHaveBeenCalled()
+    expect(entriesOn(log, TODAY)).toEqual([])
+  })
+
+  it('blocks saving zero servings with a message', async () => {
+    const { onDone } = await setup({ withRecents: false })
+    fillQuick('Apple', apple)
+    fireEvent.input(screen.getByLabelText('Servings'), { target: { value: '0' } })
+    expect(screen.getByText(/Servings must be a positive number/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    expect(onDone).not.toHaveBeenCalled()
+  })
+
+  it('goes back to choosing without logging', async () => {
+    const { onDone } = await setup({ withRecents: false })
+    fireEvent.click(screen.getByRole('button', { name: 'Quick entry' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(screen.getByRole('region', { name: 'Recents' })).toBeInTheDocument()
+    expect(onDone).not.toHaveBeenCalled()
+  })
+})
