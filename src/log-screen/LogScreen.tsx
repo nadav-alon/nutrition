@@ -72,7 +72,7 @@ export function LogScreen({ log, foods, day, now, onDone }: LogScreenProps) {
     return <ConfirmStep log={log} picked={picked} day={day} now={now} onSaved={onDone} onBack={() => setPicked(null)} />
   }
   if (quick) {
-    return <QuickEntryForm log={log} day={day} now={now} onSaved={onDone} onBack={() => setQuick(false)} />
+    return <QuickEntryForm log={log} foods={foods} day={day} now={now} onSaved={onDone} onBack={() => setQuick(false)} />
   }
   return (
     <main class="screen log-screen">

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { nutrition } from 'data-platform'
 import { day, dayEnd, dayStart, type Day } from '../day.ts'
 import { fakeFoods } from '../foods/fake-foods.ts'
-import type { FoodFields, Foods } from '../foods/foods.ts'
+import type { FoodFields, Foods, SavedFood } from '../foods/foods.ts'
 import { fakeLogStore } from '../log/fake-log-store.ts'
 import type { LogEntry, LogStore } from '../log/log-store.ts'
 import { quickToast, schnitzel } from '../log/log-store.contract.ts'
@@ -236,5 +236,71 @@ describe('LogScreen Quick Entry', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
     expect(screen.getByRole('region', { name: 'Recents' })).toBeInTheDocument()
     expect(onDone).not.toHaveBeenCalled()
+  })
+})
+
+/** The live Foods, read once. */
+function foodsIn(foods: Foods) {
+  let latest: readonly SavedFood[] = []
+  foods.watch((list) => (latest = list))()
+  return latest
+}
+
+describe('LogScreen Quick Entry saved as a Food', () => {
+  it('creates the Food first and logs a Food entry instead of a Quick Entry', async () => {
+    const { foods, log, onDone } = await setup({ withRecents: false })
+    fillQuick('Apple', apple)
+    fireEvent.click(screen.getByLabelText('Save as Food'))
+    fireEvent.input(screen.getByLabelText('Place (optional)'), { target: { value: ' Home ' } })
+    fireEvent.input(screen.getByLabelText('Serving label (optional)'), { target: { value: '1 apple' } })
+    fireEvent.click(screen.getByLabelText('Estimated'))
+    fireEvent.input(screen.getByLabelText('Servings'), { target: { value: '2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+
+    const saved = foodsIn(foods).find((food) => food.name === 'Apple')
+    expect(saved).toMatchObject({
+      place: 'Home',
+      servingLabel: '1 apple',
+      estimated: true,
+      perServing: { kcal: 95, proteinG: 0.5, carbsG: 25, fatG: 0.3 },
+    })
+    expect(entriesOn(log, TODAY)).toEqual([
+      expect.objectContaining({ name: 'Apple', source: { kind: 'food', foodId: saved?.id }, servings: 2 }),
+    ])
+  })
+
+  it('leaves out an empty place and serving label, and is not Estimated by default', async () => {
+    const { foods, onDone } = await setup({ withRecents: false })
+    fillQuick('Apple', apple)
+    fireEvent.click(screen.getByLabelText('Save as Food'))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    const saved = foodsIn(foods).find((food) => food.name === 'Apple')
+    expect(saved?.estimated).toBe(false)
+    expect(saved?.place).toBeUndefined()
+    expect(saved?.servingLabel).toBeUndefined()
+  })
+
+  it('does not save a Food when the box is unticked', async () => {
+    const { foods, onDone } = await setup({ withRecents: false })
+    fillQuick('Apple', apple)
+    expect(screen.queryByLabelText('Place (optional)')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    expect(foodsIn(foods).map((food) => food.name)).toEqual(['Schnitzel plate'])
+  })
+
+  it('on a failed log, keeps the form and a retry reuses the Food it already saved', async () => {
+    const { foods, log, onDone } = await setup({ withRecents: false })
+    const create = vi.spyOn(log, 'create').mockRejectedValueOnce(new Error('offline'))
+    fillQuick('Apple', apple)
+    fireEvent.click(screen.getByLabelText('Save as Food'))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('offline')
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    expect(create).toHaveBeenCalledTimes(2)
+    expect(foodsIn(foods).filter((food) => food.name === 'Apple')).toHaveLength(1)
   })
 })

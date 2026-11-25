@@ -1,10 +1,11 @@
-import { useState } from 'preact/hooks'
+import { useRef, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import { nutrition } from 'data-platform'
 import { Button } from 'household-ui/ui/Button.tsx'
 import { TextField } from 'household-ui/ui/TextField.tsx'
 import type { Day } from '../day.ts'
 import { errorMessage } from '../error-message.ts'
+import type { Foods } from '../foods/foods.ts'
 import type { LogStore } from '../log/log-store.ts'
 import { rescaleNutrition } from '../log/rescale.ts'
 import { servings } from '../log/servings.ts'
@@ -30,6 +31,7 @@ function macroError(text: string): string | undefined {
 
 export interface QuickEntryFormProps {
   log: LogStore
+  foods: Foods
   day: Day
   now: Date
   /** Called once the entry is saved. */
@@ -38,11 +40,20 @@ export interface QuickEntryFormProps {
   onBack: () => void
 }
 
-/** A name and per-Serving Nutrition typed once, with the confirm fields, logged as a Quick Entry. */
-export function QuickEntryForm({ log, day, now, onSaved, onBack }: QuickEntryFormProps) {
+/**
+ * A name and per-Serving Nutrition typed once, with the confirm fields, logged as a Quick Entry; or,
+ * with "Save as Food", saved as a Food first and logged as an entry of that Food.
+ */
+export function QuickEntryForm({ log, foods, day, now, onSaved, onBack }: QuickEntryFormProps) {
   const { values, fields } = useConfirmFields(day, now)
   const [name, setName] = useState('')
   const [macroText, setMacroText] = useState<Record<MacroKey, string>>({ kcal: '', proteinG: '', carbsG: '', fatG: '' })
+  const [saveAsFood, setSaveAsFood] = useState(false)
+  const [place, setPlace] = useState('')
+  const [servingLabel, setServingLabel] = useState('')
+  const [estimated, setEstimated] = useState(false)
+  /** The Food created by a save whose logging then failed, so a retry logs it rather than saving a second one. */
+  const createdFood = useRef<nutrition.FoodId | null>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -61,9 +72,20 @@ export function QuickEntryForm({ log, day, now, onSaved, onBack }: QuickEntryFor
     setSaving(true)
     setError(null)
     try {
+      let source: nutrition.LogEntrySource = { kind: 'quick' }
+      if (saveAsFood) {
+        createdFood.current ??= await foods.add({
+          name: trimmedName,
+          ...(place.trim() !== '' && { place: place.trim() }),
+          ...(servingLabel.trim() !== '' && { servingLabel: servingLabel.trim() }),
+          perServing,
+          estimated,
+        })
+        source = { kind: 'food', foodId: createdFood.current }
+      }
       await log.create({
         name: trimmedName,
-        source: { kind: 'quick' },
+        source,
         nutrition: rescaleNutrition(perServing, servings(1), values.servings),
         ...values,
       })
@@ -99,6 +121,32 @@ export function QuickEntryForm({ log, day, now, onSaved, onBack }: QuickEntryFor
             error={macroErrors[key]}
           />
         ))}
+        <label>
+          <input
+            type="checkbox"
+            checked={saveAsFood}
+            onChange={(event) => setSaveAsFood(event.currentTarget.checked)}
+          />{' '}
+          Save as Food
+        </label>
+        {saveAsFood && (
+          <>
+            <TextField label="Place (optional)" value={place} onInput={(event) => setPlace(event.currentTarget.value)} />
+            <TextField
+              label="Serving label (optional)"
+              value={servingLabel}
+              onInput={(event) => setServingLabel(event.currentTarget.value)}
+            />
+            <label>
+              <input
+                type="checkbox"
+                checked={estimated}
+                onChange={(event) => setEstimated(event.currentTarget.checked)}
+              />{' '}
+              Estimated
+            </label>
+          </>
+        )}
         {fields}
         {error !== null && <p role="alert">{error}</p>}
         <Button type="submit" variant="filled" disabled={!valid || saving}>
