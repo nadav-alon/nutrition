@@ -45,6 +45,41 @@ describe('LogScreen Recents', () => {
   })
 })
 
+describe('LogScreen Recents, beyond the list', () => {
+  it('shows Recents above the search results while searching', async () => {
+    await setup()
+    fireEvent.input(screen.getByLabelText('Search foods'), { target: { value: 'schnitzel' } })
+    const foodsSection = await screen.findByRole('region', { name: 'Foods' })
+    const recentsSection = screen.getByRole('region', { name: 'Recents' })
+    expect(recentsSection.compareDocumentPosition(foodsSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('leaves a soft-deleted Food out of Recents and of search', async () => {
+    const { foods, foodId } = await setup()
+    await foods.softDelete(foodId)
+    fireEvent.input(screen.getByLabelText('Search foods'), { target: { value: 'schnitzel' } })
+    expect(await screen.findByText('No Foods match.')).toBeInTheDocument()
+    expect(within(screen.getByRole('region', { name: 'Recents' })).queryByText('Schnitzel plate')).toBeNull()
+  })
+
+  it('shows a failure to watch the Foods', async () => {
+    const foods = fakeFoods()
+    vi.spyOn(foods, 'watch').mockImplementation((_listener, onError) => {
+      onError?.(new Error('foods offline'))
+      return () => {}
+    })
+    render(<LogScreen log={fakeLogStore()} foods={foods} day={TODAY} now={NOW} onDone={vi.fn()} />)
+    expect(await screen.findByRole('alert')).toHaveTextContent('foods offline')
+  })
+
+  it('shows a failure to load Recents', async () => {
+    const log = fakeLogStore()
+    vi.spyOn(log, 'recent').mockRejectedValue(new Error('recents offline'))
+    render(<LogScreen log={log} foods={fakeFoods()} day={TODAY} now={NOW} onDone={vi.fn()} />)
+    expect(await screen.findByRole('alert')).toHaveTextContent('recents offline')
+  })
+})
+
 describe('LogScreen search', () => {
   it('filters live Foods by name and by place as the Member types', async () => {
     const { foods } = await setup({ withRecents: false })

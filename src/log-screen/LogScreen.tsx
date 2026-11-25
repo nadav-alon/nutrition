@@ -4,7 +4,8 @@ import { ListRow } from 'household-ui/ui/ListRow.tsx'
 import { TextField } from 'household-ui/ui/TextField.tsx'
 import type { Day } from '../day.ts'
 import type { Foods, SavedFood } from '../foods/foods.ts'
-import type { LogStore } from '../log/log-store.ts'
+import { errorMessage } from '../error-message.ts'
+import type { LogEntry, LogStore } from '../log/log-store.ts'
 import { recents, type Recent } from '../log/recents.ts'
 import { ConfirmStep, type Picked } from './ConfirmStep.tsx'
 import { QuickEntryForm } from './QuickEntryForm.tsx'
@@ -30,18 +31,26 @@ function matches(food: SavedFood, query: string): boolean {
   return food.name.toLowerCase().includes(needle) || (food.place?.toLowerCase().includes(needle) ?? false)
 }
 
+/** Which step of logging the screen is on: choosing what to log, confirming a pick, or typing a Quick Entry. */
+type Mode = { kind: 'choose' } | { kind: 'confirm'; picked: Picked } | { kind: 'quick' }
+
 /** Logging one thing on a Day: a Recent, a saved Food, or a Quick Entry. */
 export function LogScreen({ log, foods, day, now, onDone }: LogScreenProps) {
-  const [picked, setPicked] = useState<Picked | null>(null)
-  const [quick, setQuick] = useState(false)
+  const [mode, setMode] = useState<Mode>({ kind: 'choose' })
   const [savedFoods, setSavedFoods] = useState<readonly SavedFood[]>([])
-  const [recentEntries, setRecentEntries] = useState<Awaited<ReturnType<LogStore['recent']>>>([])
-  useEffect(() => foods.watch(setSavedFoods), [foods])
+  const [recentEntries, setRecentEntries] = useState<readonly LogEntry[]>([])
+  const [loadError, setLoadError] = useState<string | null>(null)
+  useEffect(() => foods.watch(setSavedFoods, (err) => setLoadError(errorMessage(err, 'Could not load Foods.'))), [foods])
   useEffect(() => {
     let current = true
-    log.recent(RECENT_ENTRY_WINDOW).then((entries) => {
-      if (current) setRecentEntries(entries)
-    })
+    log
+      .recent(RECENT_ENTRY_WINDOW)
+      .then((entries) => {
+        if (current) setRecentEntries(entries)
+      })
+      .catch((err: unknown) => {
+        if (current) setLoadError(errorMessage(err, 'Could not load Recents.'))
+      })
     return () => {
       current = false
     }
@@ -53,26 +62,33 @@ export function LogScreen({ log, foods, day, now, onDone }: LogScreenProps) {
   const offered: readonly Recent[] = recents(recentEntries, foodsById)
 
   const pickFood = (food: SavedFood) =>
-    setPicked({
-      name: food.name,
-      source: { kind: 'food', foodId: food.id },
-      perServing: food.perServing,
-      servingLabel: food.servingLabel,
+    setMode({
+      kind: 'confirm',
+      picked: {
+        name: food.name,
+        source: { kind: 'food', foodId: food.id },
+        perServing: food.perServing,
+        servingLabel: food.servingLabel,
+      },
     })
   const pickRecent = (recent: Recent) => {
     if (recent.kind === 'quick') {
-      setPicked({ name: recent.name, source: { kind: 'quick' }, perServing: recent.perServing })
+      setMode({
+        kind: 'confirm',
+        picked: { name: recent.name, source: { kind: 'quick' }, perServing: recent.perServing },
+      })
       return
     }
     const food = foodsById.get(recent.foodId)
     if (food) pickFood(food)
   }
 
-  if (picked !== null) {
-    return <ConfirmStep log={log} picked={picked} day={day} now={now} onSaved={onDone} onBack={() => setPicked(null)} />
+  const backToChoosing = () => setMode({ kind: 'choose' })
+  if (mode.kind === 'confirm') {
+    return <ConfirmStep log={log} picked={mode.picked} day={day} now={now} onSaved={onDone} onBack={backToChoosing} />
   }
-  if (quick) {
-    return <QuickEntryForm log={log} foods={foods} day={day} now={now} onSaved={onDone} onBack={() => setQuick(false)} />
+  if (mode.kind === 'quick') {
+    return <QuickEntryForm log={log} foods={foods} day={day} now={now} onSaved={onDone} onBack={backToChoosing} />
   }
   return (
     <main class="screen log-screen">
@@ -80,9 +96,18 @@ export function LogScreen({ log, foods, day, now, onDone }: LogScreenProps) {
         Back
       </Button>
       <h2>Log</h2>
-      <Button variant="tonal" onClick={() => setQuick(true)}>
+      {loadError !== null && <p role="alert">{loadError}</p>}
+      <Button variant="tonal" onClick={() => setMode({ kind: 'quick' })}>
         Quick entry
       </Button>
+      <section aria-labelledby="recents-heading">
+        <h3 id="recents-heading">Recents</h3>
+        <ul class="entry-list">
+          {offered.map((recent) => (
+            <ListRow key={recent.kind === 'food' ? recent.foodId : `quick:${recent.name}`} headline={recent.name} onActivate={() => pickRecent(recent)} />
+          ))}
+        </ul>
+      </section>
       <TextField
         label="Search foods"
         type="search"
@@ -103,14 +128,6 @@ export function LogScreen({ log, foods, day, now, onDone }: LogScreenProps) {
           )}
         </section>
       )}
-      <section aria-labelledby="recents-heading">
-        <h3 id="recents-heading">Recents</h3>
-        <ul class="entry-list">
-          {offered.map((recent) => (
-            <ListRow key={recent.kind === 'food' ? recent.foodId : `quick:${recent.name}`} headline={recent.name} onActivate={() => pickRecent(recent)} />
-          ))}
-        </ul>
-      </section>
     </main>
   )
 }
