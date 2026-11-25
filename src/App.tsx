@@ -54,7 +54,15 @@ export function App({ log, foods, targets }: AppPorts) {
         </>
       )}
       {route.name === 'log' && (
-        <LogScreen log={log} foods={foods} day={route.day} now={now} onDone={() => backToDay(route.day)} />
+        <LogScreen
+          key={JSON.stringify(route.estimate ?? null)}
+          log={log}
+          foods={foods}
+          day={route.day}
+          now={now}
+          estimate={route.estimate}
+          onDone={() => backToDay(route.day)}
+        />
       )}
       {route.name === 'entry' && (
         <LogEntryLoader log={log} day={route.day} id={route.id} onDone={() => backToDay(route.day)} />

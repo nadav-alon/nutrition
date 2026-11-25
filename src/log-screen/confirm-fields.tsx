@@ -20,10 +20,11 @@ export interface ConfirmValues {
  * The fields shared by logging a Food, a Recent and a Quick Entry: servings (default 1, fractions
  * allowed), Meal Type, and eaten time. The eaten time starts at the Day module's default; the Meal
  * Type follows the eaten time until the Member picks one themselves. `values` is undefined while
- * any field is invalid, and `fields` shows the message for each.
+ * any field is invalid, and `fields` shows the message for each. `initialServings` is the text the
+ * servings field starts with.
  */
-export function useConfirmFields(day: Day, now: Date): { values: ConfirmValues | undefined; fields: ComponentChildren } {
-  const [servingsText, setServingsText] = useState('1')
+export function useConfirmFields(day: Day, now: Date, initialServings = '1'): { values: ConfirmValues | undefined; fields: ComponentChildren } {
+  const [servingsText, setServingsText] = useState(initialServings)
   const [eatenText, setEatenText] = useState<string>(() => toLocalInput(defaultEatenTime(day, now)))
   const [pickedMealType, setPickedMealType] = useState<nutrition.MealType | null>(null)
 

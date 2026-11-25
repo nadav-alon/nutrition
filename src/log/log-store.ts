@@ -10,6 +10,8 @@ export interface LogEntry {
   readonly servings: Servings
   readonly mealType: nutrition.MealType
   readonly eatenAt: Date
+  /** Set when the Nutrition is an estimate; only a Quick Entry carries it, a Food's entry leaves it to the Food. Absent means it is not. */
+  readonly estimated?: true
 }
 
 /** What logging something needs: a Food's entry carries `source.foodId`, a Quick Entry's source is `{ kind: 'quick' }`. */

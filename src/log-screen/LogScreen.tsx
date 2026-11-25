@@ -3,6 +3,7 @@ import { Button } from 'household-ui/ui/Button.tsx'
 import { ListRow } from 'household-ui/ui/ListRow.tsx'
 import { TextField } from 'household-ui/ui/TextField.tsx'
 import type { Day } from '../day.ts'
+import type { EstimateLink } from '../estimate-link.ts'
 import type { Foods, SavedFood } from '../foods/foods.ts'
 import { errorMessage } from '../error-message.ts'
 import type { LogEntry, LogStore } from '../log/log-store.ts'
@@ -22,6 +23,8 @@ export interface LogScreenProps {
   now: Date
   /** Called when the Member leaves the screen, after saving or without logging. */
   onDone: () => void
+  /** An estimate link's contents: the screen opens on a Quick Entry filled with them. */
+  estimate?: EstimateLink
 }
 
 /** Whether `food`'s name or place contains `query`, ignoring case and surrounding whitespace; an empty query matches nothing. */
@@ -35,8 +38,8 @@ function matches(food: SavedFood, query: string): boolean {
 type Mode = { kind: 'choose' } | { kind: 'confirm'; picked: Picked } | { kind: 'quick' }
 
 /** Logging one thing on a Day: a Recent, a saved Food, or a Quick Entry. */
-export function LogScreen({ log, foods, day, now, onDone }: LogScreenProps) {
-  const [mode, setMode] = useState<Mode>({ kind: 'choose' })
+export function LogScreen({ log, foods, day, now, onDone, estimate }: LogScreenProps) {
+  const [mode, setMode] = useState<Mode>(estimate === undefined ? { kind: 'choose' } : { kind: 'quick' })
   const [savedFoods, setSavedFoods] = useState<readonly SavedFood[]>([])
   const [recentEntries, setRecentEntries] = useState<readonly LogEntry[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -88,7 +91,7 @@ export function LogScreen({ log, foods, day, now, onDone }: LogScreenProps) {
     return <ConfirmStep log={log} picked={mode.picked} day={day} now={now} onSaved={onDone} onBack={backToChoosing} />
   }
   if (mode.kind === 'quick') {
-    return <QuickEntryForm log={log} foods={foods} day={day} now={now} onSaved={onDone} onBack={backToChoosing} />
+    return <QuickEntryForm log={log} foods={foods} day={day} now={now} estimate={estimate} onSaved={onDone} onBack={backToChoosing} />
   }
   return (
     <main class="screen log-screen">
