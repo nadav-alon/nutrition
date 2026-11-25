@@ -149,3 +149,58 @@ describe('FoodsScreen add', () => {
     expect(screen.getByLabelText('Name')).toHaveValue('Apple')
   })
 })
+
+describe('FoodsScreen edit', () => {
+  async function opened() {
+    const foods = fakeFoods()
+    await foods.add(schnitzel)
+    render(<FoodsScreen foods={foods} />)
+    fireEvent.click(await screen.findByRole('button', { name: /Canteen schnitzel/ }))
+    return foods
+  }
+
+  it('opens the same form prefilled with the Food', async () => {
+    await opened()
+    expect(screen.getByLabelText('Name')).toHaveValue('Canteen schnitzel')
+    expect(screen.getByLabelText('Place')).toHaveValue('Work canteen')
+    expect(screen.getByLabelText('Serving label')).toHaveValue('1 plate')
+    expect(screen.getByLabelText('Calories (kcal)')).toHaveValue(620)
+    expect(screen.getByLabelText('Protein (g)')).toHaveValue(34)
+    expect(screen.getByLabelText('Carbs (g)')).toHaveValue(41)
+    expect(screen.getByLabelText('Fat (g)')).toHaveValue(33)
+    expect(screen.getByLabelText('Estimated')).toBeChecked()
+  })
+
+  it('saves the changes to that Food and returns to the list', async () => {
+    const foods = await opened()
+    fill('Name', 'School schnitzel')
+    fill('Calories (kcal)', '580')
+    fireEvent.click(screen.getByLabelText('Estimated'))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    const row = await screen.findByRole('listitem')
+    expect(row).toHaveTextContent('School schnitzel')
+    expect(row).toHaveTextContent('580 kcal')
+    expect(row).not.toHaveTextContent('Estimated')
+    expect(await listed(foods)).toHaveLength(1)
+  })
+
+  it('clears the place and serving label when they are emptied', async () => {
+    const foods = await opened()
+    fill('Place', '')
+    fill('Serving label', '')
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await screen.findByRole('listitem')
+    const [food] = await listed(foods)
+    expect(food?.place).toBeUndefined()
+    expect(food?.servingLabel).toBeUndefined()
+  })
+
+  it('blocks saving invalid input as when adding', async () => {
+    const foods = await opened()
+    const edit = vi.spyOn(foods, 'edit')
+    fill('Name', '')
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(screen.getByLabelText('Name')).toBeInvalid()
+    expect(edit).not.toHaveBeenCalled()
+  })
+})

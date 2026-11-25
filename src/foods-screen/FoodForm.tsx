@@ -4,7 +4,7 @@ import { nutrition } from 'data-platform'
 import { Button } from 'household-ui/ui/Button.tsx'
 import { TextField } from 'household-ui/ui/TextField.tsx'
 import { errorMessage } from '../error-message.ts'
-import type { FoodFields, Foods } from '../foods/foods.ts'
+import type { FoodChanges, FoodFields, Foods, SavedFood } from '../foods/foods.ts'
 
 type MacroKey = keyof nutrition.Nutrition
 
@@ -17,19 +17,31 @@ const MACROS: readonly { key: MacroKey; label: string }[] = [
 
 type Errors = Partial<Record<'name' | MacroKey, string>>
 
+/** The changes that make a Food read as `fields`: a place or serving label left out is cleared. */
+function toChanges({ place, servingLabel, ...rest }: FoodFields): FoodChanges {
+  return { ...rest, place: place ?? null, servingLabel: servingLabel ?? null }
+}
+
 export interface FoodFormProps {
   foods: Foods
+  /** The Food being edited; without one the form adds a new Food. */
+  food?: SavedFood
   /** Called when the form is done: after a save, or when the Member backs out. */
   onDone: () => void
 }
 
 /** The form for a Food's fields: name, place, serving label, per-Serving Nutrition and whether it is Estimated. */
-export function FoodForm({ foods, onDone }: FoodFormProps) {
-  const [name, setName] = useState('')
-  const [place, setPlace] = useState('')
-  const [servingLabel, setServingLabel] = useState('')
-  const [macros, setMacros] = useState<Record<MacroKey, string>>({ kcal: '', proteinG: '', carbsG: '', fatG: '' })
-  const [estimated, setEstimated] = useState(false)
+export function FoodForm({ foods, food, onDone }: FoodFormProps) {
+  const [name, setName] = useState(food?.name ?? '')
+  const [place, setPlace] = useState(food?.place ?? '')
+  const [servingLabel, setServingLabel] = useState(food?.servingLabel ?? '')
+  const [macros, setMacros] = useState<Record<MacroKey, string>>({
+    kcal: food === undefined ? '' : String(food.perServing.kcal),
+    proteinG: food === undefined ? '' : String(food.perServing.proteinG),
+    carbsG: food === undefined ? '' : String(food.perServing.carbsG),
+    fatG: food === undefined ? '' : String(food.perServing.fatG),
+  })
+  const [estimated, setEstimated] = useState(food?.estimated ?? false)
   const [errors, setErrors] = useState<Errors>({})
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -75,7 +87,8 @@ export function FoodForm({ foods, onDone }: FoodFormProps) {
     setSaveError(null)
     setSaving(true)
     try {
-      await foods.add(parsed.fields)
+      if (food === undefined) await foods.add(parsed.fields)
+      else await foods.edit(food.id, toChanges(parsed.fields))
       onDone()
     } catch (error) {
       setSaveError(errorMessage(error, 'Could not save.'))

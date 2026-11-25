@@ -25,7 +25,7 @@ function matches(food: SavedFood, query: string): boolean {
 /** The Household's Foods: listed by name with place and per-Serving kcal, Estimated ones marked. */
 export function FoodsScreen({ foods }: FoodsScreenProps) {
   const [list, setList] = useState<readonly SavedFood[] | null>(null)
-  const [formOpen, setFormOpen] = useState(false)
+  const [form, setForm] = useState<{ food?: SavedFood } | null>(null)
   const [query, setQuery] = useState('')
   const [listError, setListError] = useState<string | null>(null)
 
@@ -33,7 +33,7 @@ export function FoodsScreen({ foods }: FoodsScreenProps) {
     return foods.watch(setList, (error) => setListError(errorMessage(error, 'Could not load Foods.')))
   }, [foods])
 
-  if (formOpen) return <FoodForm foods={foods} onDone={() => setFormOpen(false)} />
+  if (form !== null) return <FoodForm key={form.food?.id} foods={foods} food={form.food} onDone={() => setForm(null)} />
   if (listError !== null) return <main class="screen foods" role="alert">{listError}</main>
   if (list === null) return <main class="screen foods" />
   const shown = list.filter((food) => matches(food, query))
@@ -51,12 +51,13 @@ export function FoodsScreen({ foods }: FoodsScreenProps) {
               key={food.id}
               headline={food.name}
               supporting={supportingLine(food)}
+              onActivate={() => setForm({ food })}
               trailing={food.estimated ? <span>Estimated</span> : undefined}
             />
           ))}
         </ul>
       )}
-      <Button variant="filled" onClick={() => setFormOpen(true)}>
+      <Button variant="filled" onClick={() => setForm({})}>
         Add food
       </Button>
     </main>
