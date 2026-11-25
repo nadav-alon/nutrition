@@ -204,3 +204,48 @@ describe('FoodsScreen edit', () => {
     expect(edit).not.toHaveBeenCalled()
   })
 })
+
+describe('FoodsScreen delete', () => {
+  async function opened() {
+    const foods = fakeFoods()
+    await foods.add(schnitzel)
+    await foods.add(apple)
+    render(<FoodsScreen foods={foods} />)
+    fireEvent.click(await screen.findByRole('button', { name: /Canteen schnitzel/ }))
+    return foods
+  }
+
+  it('offers no delete when adding', async () => {
+    render(<FoodsScreen foods={fakeFoods()} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Add food' }))
+    expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull()
+  })
+
+  it('asks first, then soft deletes the Food and returns to the list without it', async () => {
+    const foods = await opened()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const softDelete = vi.spyOn(foods, 'softDelete')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('Canteen schnitzel'))
+    await waitFor(() => expect(screen.getAllByRole('listitem')).toHaveLength(1))
+    expect(screen.getByRole('listitem')).toHaveTextContent('Apple')
+    expect(softDelete).toHaveBeenCalledOnce()
+  })
+
+  it('keeps the Food when the Member declines', async () => {
+    const foods = await opened()
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const softDelete = vi.spyOn(foods, 'softDelete')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(softDelete).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Name')).toHaveValue('Canteen schnitzel')
+  })
+
+  it('keeps the form and says so when deleting fails', async () => {
+    const foods = await opened()
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    vi.spyOn(foods, 'softDelete').mockRejectedValue(new Error('offline'))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('offline'))
+  })
+})
