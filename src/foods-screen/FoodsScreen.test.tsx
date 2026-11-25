@@ -201,6 +201,7 @@ describe('FoodsScreen edit', () => {
     fill('Name', '')
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(screen.getByLabelText('Name')).toBeInvalid()
+    expect(screen.getByRole('alert')).toHaveTextContent('Name is required.')
     expect(edit).not.toHaveBeenCalled()
   })
 })
