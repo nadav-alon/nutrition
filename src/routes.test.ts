@@ -25,4 +25,20 @@ describe('routes', () => {
       expect(parseRoute(hash, today)).toEqual({ name: 'day', day: today })
     },
   )
+
+  it("reads #/log as the Log screen on today's Day", () => {
+    expect(parseRoute('#/log', today)).toEqual({ name: 'log', day: today })
+  })
+
+  it("reads an estimate link as the Log screen on today's Day carrying the estimate", () => {
+    expect(parseRoute('#/log?name=Soup&kcal=200&est=1', today)).toEqual({
+      name: 'log',
+      day: today,
+      estimate: expect.objectContaining({ name: 'Soup', kcal: '200', estimated: true }),
+    })
+  })
+
+  it('keeps the Day of #/day/…/log when it carries an estimate', () => {
+    expect(parseRoute('#/day/2026-03-09/log?name=Soup', today)).toMatchObject({ name: 'log', day: day('2026-03-09') })
+  })
 })
