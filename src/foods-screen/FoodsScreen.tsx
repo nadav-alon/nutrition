@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
 import { ListRow } from 'household-ui/ui/ListRow.tsx'
+import { TextField } from 'household-ui/ui/TextField.tsx'
 import { errorMessage } from '../error-message.ts'
 import type { Foods, SavedFood } from '../foods/foods.ts'
 
@@ -13,9 +14,16 @@ function supportingLine(food: SavedFood): string {
   return food.place === undefined ? kcal : `${food.place} · ${kcal}`
 }
 
+/** Whether the query, ignoring case and surrounding space, appears in the Food's name or place. */
+function matches(food: SavedFood, query: string): boolean {
+  const needle = query.trim().toLowerCase()
+  return food.name.toLowerCase().includes(needle) || (food.place?.toLowerCase().includes(needle) ?? false)
+}
+
 /** The Household's Foods: listed by name with place and per-Serving kcal, Estimated ones marked. */
 export function FoodsScreen({ foods }: FoodsScreenProps) {
   const [list, setList] = useState<readonly SavedFood[] | null>(null)
+  const [query, setQuery] = useState('')
   const [listError, setListError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -24,13 +32,17 @@ export function FoodsScreen({ foods }: FoodsScreenProps) {
 
   if (listError !== null) return <main class="screen foods" role="alert">{listError}</main>
   if (list === null) return <main class="screen foods" />
+  const shown = list.filter((food) => matches(food, query))
   return (
     <main class="screen foods">
+      <TextField label="Search" type="search" value={query} onInput={(event) => setQuery(event.currentTarget.value)} />
       {list.length === 0 ? (
         <p>No Foods yet.</p>
+      ) : shown.length === 0 ? (
+        <p>No Foods match.</p>
       ) : (
         <ul class="food-list">
-          {list.map((food) => (
+          {shown.map((food) => (
             <ListRow
               key={food.id}
               headline={food.name}

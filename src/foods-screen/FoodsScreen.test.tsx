@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/preact'
+import { fireEvent, render, screen } from '@testing-library/preact'
 import { describe, expect, it } from 'vitest'
 import type { Foods } from '../foods/foods.ts'
 import { fakeFoods } from '../foods/fake-foods.ts'
@@ -36,5 +36,34 @@ describe('FoodsScreen list', () => {
     }
     render(<FoodsScreen foods={foods} />)
     expect(await screen.findByRole('alert')).toHaveTextContent('boom')
+  })
+})
+
+describe('FoodsScreen search', () => {
+  async function searched(query: string) {
+    const foods = fakeFoods()
+    await foods.add(schnitzel)
+    await foods.add(apple)
+    render(<FoodsScreen foods={foods} />)
+    await screen.findAllByRole('listitem')
+    fireEvent.input(screen.getByLabelText('Search'), { target: { value: query } })
+  }
+
+  it('filters by name, ignoring case', async () => {
+    await searched('APP')
+    expect(screen.getAllByRole('listitem')).toHaveLength(1)
+    expect(screen.getByRole('listitem')).toHaveTextContent('Apple')
+  })
+
+  it('filters by place', async () => {
+    await searched('canteen')
+    expect(screen.getAllByRole('listitem')).toHaveLength(1)
+    expect(screen.getByRole('listitem')).toHaveTextContent('Canteen schnitzel')
+  })
+
+  it('says so when nothing matches', async () => {
+    await searched('pizza')
+    expect(screen.queryByRole('listitem')).toBeNull()
+    expect(screen.getByText('No Foods match.')).toBeInTheDocument()
   })
 })
