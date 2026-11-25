@@ -14,7 +14,7 @@
     "theme": "node scripts/theme.mjs",
     "icons": "node scripts/icons.mjs",
     "typecheck": "tsc --noEmit",
-    "test:unit": "vitest run --exclude '**/*.emulator.test.ts' --exclude '**/node_modules/**'"
+    "test:unit": "vitest run --exclude '**/*.emulator.test.*' --exclude '**/node_modules/**'"
   },
   "dependencies": {
     "data-platform": "github:nadav-alon/data-platform#v0.22.0",

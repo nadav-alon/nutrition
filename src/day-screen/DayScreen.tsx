@@ -5,8 +5,9 @@ import { IconButton } from 'household-ui/ui/IconButton.tsx'
 import { ListRow } from 'household-ui/ui/ListRow.tsx'
 import ChevronLeft from '~icons/material-symbols/chevron-left'
 import ChevronRight from '~icons/material-symbols/chevron-right'
-import { dayEnd, dayOf, dayStart, nextDay, previousDay, type Day } from '../day.ts'
+import { dayOf, nextDay, previousDay, type Day } from '../day.ts'
 import type { LogEntry, LogStore } from '../log/log-store.ts'
+import { useDayEntries } from '../log/use-day-entries.ts'
 import type { Targets, TargetsPort } from '../targets/targets-port.ts'
 
 export interface DayScreenProps {
@@ -14,6 +15,10 @@ export interface DayScreenProps {
   targets: TargetsPort
   /** The current instant; decides which Day is today. */
   now: Date
+  /** The Day being viewed. */
+  day: Day
+  /** Called with the Day the Member steps to. */
+  onDayChange: (day: Day) => void
   /** Called with the tapped entry. */
   onOpenEntry: (entry: LogEntry) => void
   /** Called with the viewed Day when the Member asks to log on it. */
@@ -73,44 +78,31 @@ function MacroBar({ macro: { label, unit }, eaten: rawEaten, target }: MacroBarP
   )
 }
 
-/** One Day's Log Entries against the Member's Targets; today by default, stepping to earlier Days. */
-export function DayScreen({ log, targets, now, onOpenEntry, onLog }: DayScreenProps) {
+/** One Day's Log Entries against the Member's Targets; stepping to earlier Days. */
+export function DayScreen({ log, targets, now, day: viewed, onDayChange, onOpenEntry, onLog }: DayScreenProps) {
   const today = dayOf(now)
-  const [viewed, setViewed] = useState<Day>(today)
-  // Keyed by Day: another Day's snapshot, or none yet, means this Day is still loading.
-  const [loaded, setLoaded] = useState<
-    { day: Day; entries: readonly LogEntry[] } | { day: Day; error: true } | null
-  >(null)
+  const dayEntries = useDayEntries(log, viewed)
   const [memberTargets, setMemberTargets] = useState<Targets | null>(null)
   const [targetsFailed, setTargetsFailed] = useState(false)
   useEffect(() => {
     return targets.subscribe(setMemberTargets, () => setTargetsFailed(true))
   }, [targets])
-  useEffect(() => {
-    return log.watchDay(
-      dayStart(viewed),
-      dayEnd(viewed),
-      (entries) => setLoaded({ day: viewed, entries }),
-      () => setLoaded({ day: viewed, error: true }),
-    )
-  }, [log, viewed])
-  const current = loaded?.day === viewed ? loaded : null
-  const entries = current !== null && 'entries' in current ? current.entries : null
+  const entries = dayEntries.status === 'loaded' ? dayEntries.entries : null
   const total = (key: MacroKey) => (entries ?? []).reduce((sum, entry) => sum + entry.nutrition[key], 0)
   return (
     <section class="screen day-screen">
       <header class="day-nav">
-        <IconButton symbol={ChevronLeft} label="Previous day" onClick={() => setViewed(previousDay(viewed))} />
+        <IconButton symbol={ChevronLeft} label="Previous day" onClick={() => onDayChange(previousDay(viewed))} />
         <h2>{viewed === today ? 'Today' : viewed}</h2>
         <IconButton
           symbol={ChevronRight}
           label="Next day"
           disabled={viewed === today}
-          onClick={() => setViewed(nextDay(viewed, now))}
+          onClick={() => onDayChange(nextDay(viewed, now))}
         />
       </header>
       {targetsFailed ? <p>Targets unavailable.</p> : null}
-      {current !== null && 'error' in current ? (
+      {dayEntries.status === 'error' ? (
         <p>Log unavailable.</p>
       ) : entries === null ? (
         <p>Loading…</p>
