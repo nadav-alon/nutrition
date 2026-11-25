@@ -24,7 +24,7 @@ Servings, fractions allowed.
 _Avoid_: portion, unit
 
 **Estimated**:
-Said of a Food whose Nutrition is a guess rather than read off a label or source.
+Said of a Food, or of a Quick Entry not saved as a Food, whose Nutrition is a guess rather than read off a label or source.
 _Avoid_: approximate, guessed
 
 **Log Entry**:
@@ -35,6 +35,10 @@ _Avoid_: meal, record, diary entry
 **Quick Entry**:
 A Log Entry with no saved Food behind it: a name and Nutrition typed once.
 _Avoid_: one-off, ad-hoc entry
+
+**Estimate link**:
+A `#/log?…` link, carrying a name, place, per-Serving Nutrition and an Estimated flag, that opens the Log screen's Quick Entry form prefilled. Nothing is saved until the Member saves.
+_Avoid_: deep link, prefill link
 
 **Recents**:
 The last distinct things the Member logged, Foods and Quick Entries alike, offered for logging again.
