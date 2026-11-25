@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/preact'
+import { fireEvent, render, screen, within } from '@testing-library/preact'
 import { describe, expect, it } from 'vitest'
 import { nutrition } from 'data-platform'
 import { day } from '../day.ts'
@@ -41,5 +41,32 @@ describe('LogScreen Recents', () => {
     const recentsSection = await screen.findByRole('region', { name: 'Recents' })
     expect(await within(recentsSection).findByText('Schnitzel plate')).toBeInTheDocument()
     expect(within(recentsSection).getByText('Toast')).toBeInTheDocument()
+  })
+})
+
+describe('LogScreen search', () => {
+  it('filters live Foods by name and by place as the Member types', async () => {
+    const { foods } = await setup({ withRecents: false })
+    await foods.add({ ...schnitzelFields, name: 'Lentil soup', place: 'Home' })
+    const search = screen.getByLabelText('Search foods')
+
+    fireEvent.input(search, { target: { value: 'SOUP' } })
+    const found = await screen.findByRole('region', { name: 'Foods' })
+    expect(within(found).getByText('Lentil soup')).toBeInTheDocument()
+    expect(within(found).queryByText('Schnitzel plate')).toBeNull()
+
+    fireEvent.input(search, { target: { value: 'canteen' } })
+    expect(within(screen.getByRole('region', { name: 'Foods' })).getByText('Schnitzel plate')).toBeInTheDocument()
+    expect(screen.queryByText('Lentil soup')).toBeNull()
+
+    fireEvent.input(search, { target: { value: 'pizza' } })
+    expect(screen.getByText('No Foods match.')).toBeInTheDocument()
+  })
+
+  it('follows Foods added while searching', async () => {
+    const { foods } = await setup({ withRecents: false })
+    fireEvent.input(screen.getByLabelText('Search foods'), { target: { value: 'soup' } })
+    await foods.add({ ...schnitzelFields, name: 'Lentil soup' })
+    expect(await screen.findByText('Lentil soup')).toBeInTheDocument()
   })
 })

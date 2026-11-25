@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import { Button } from 'household-ui/ui/Button.tsx'
 import { ListRow } from 'household-ui/ui/ListRow.tsx'
+import { TextField } from 'household-ui/ui/TextField.tsx'
 import type { Day } from '../day.ts'
 import type { Foods, SavedFood } from '../foods/foods.ts'
 import type { LogStore } from '../log/log-store.ts'
@@ -20,6 +21,13 @@ export interface LogScreenProps {
   onDone: () => void
 }
 
+/** Whether `food`'s name or place contains `query`, ignoring case and surrounding whitespace; an empty query matches nothing. */
+function matches(food: SavedFood, query: string): boolean {
+  const needle = query.trim().toLowerCase()
+  if (needle === '') return false
+  return food.name.toLowerCase().includes(needle) || (food.place?.toLowerCase().includes(needle) ?? false)
+}
+
 /** Logging one thing on a Day: a Recent, a saved Food, or a Quick Entry. */
 export function LogScreen({ log, foods, onDone }: LogScreenProps) {
   const [savedFoods, setSavedFoods] = useState<readonly SavedFood[]>([])
@@ -35,6 +43,8 @@ export function LogScreen({ log, foods, onDone }: LogScreenProps) {
     }
   }, [log])
 
+  const [query, setQuery] = useState('')
+  const found = savedFoods.filter((food) => matches(food, query))
   const offered: readonly Recent[] = recents(recentEntries, new Map(savedFoods.map((food) => [food.id, food])))
   return (
     <main class="screen log-screen">
@@ -42,6 +52,26 @@ export function LogScreen({ log, foods, onDone }: LogScreenProps) {
         Back
       </Button>
       <h2>Log</h2>
+      <TextField
+        label="Search foods"
+        type="search"
+        value={query}
+        onInput={(event) => setQuery(event.currentTarget.value)}
+      />
+      {query.trim() !== '' && (
+        <section aria-labelledby="foods-heading">
+          <h3 id="foods-heading">Foods</h3>
+          {found.length === 0 ? (
+            <p>No Foods match.</p>
+          ) : (
+            <ul class="entry-list">
+              {found.map((food) => (
+                <ListRow key={food.id} headline={food.name} supporting={food.place} onActivate={() => {}} />
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
       <section aria-labelledby="recents-heading">
         <h3 id="recents-heading">Recents</h3>
         <ul class="entry-list">
