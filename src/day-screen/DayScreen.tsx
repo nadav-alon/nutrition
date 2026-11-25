@@ -14,6 +14,10 @@ export interface DayScreenProps {
   targets: TargetsPort
   /** The current instant; decides which Day is today. */
   now: Date
+  /** The Day being viewed. */
+  day: Day
+  /** Called with the Day the Member steps to. */
+  onDayChange: (day: Day) => void
   /** Called with the tapped entry. */
   onOpenEntry: (entry: LogEntry) => void
   /** Called with the viewed Day when the Member asks to log on it. */
@@ -73,10 +77,9 @@ function MacroBar({ macro: { label, unit }, eaten: rawEaten, target }: MacroBarP
   )
 }
 
-/** One Day's Log Entries against the Member's Targets; today by default, stepping to earlier Days. */
-export function DayScreen({ log, targets, now, onOpenEntry, onLog }: DayScreenProps) {
+/** One Day's Log Entries against the Member's Targets; stepping to earlier Days. */
+export function DayScreen({ log, targets, now, day: viewed, onDayChange, onOpenEntry, onLog }: DayScreenProps) {
   const today = dayOf(now)
-  const [viewed, setViewed] = useState<Day>(today)
   // Keyed by Day: another Day's snapshot, or none yet, means this Day is still loading.
   const [loaded, setLoaded] = useState<
     { day: Day; entries: readonly LogEntry[] } | { day: Day; error: true } | null
@@ -100,13 +103,13 @@ export function DayScreen({ log, targets, now, onOpenEntry, onLog }: DayScreenPr
   return (
     <section class="screen day-screen">
       <header class="day-nav">
-        <IconButton symbol={ChevronLeft} label="Previous day" onClick={() => setViewed(previousDay(viewed))} />
+        <IconButton symbol={ChevronLeft} label="Previous day" onClick={() => onDayChange(previousDay(viewed))} />
         <h2>{viewed === today ? 'Today' : viewed}</h2>
         <IconButton
           symbol={ChevronRight}
           label="Next day"
           disabled={viewed === today}
-          onClick={() => setViewed(nextDay(viewed, now))}
+          onClick={() => onDayChange(nextDay(viewed, now))}
         />
       </header>
       {targetsFailed ? <p>Targets unavailable.</p> : null}

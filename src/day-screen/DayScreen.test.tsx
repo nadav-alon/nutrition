@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/preact'
 import { describe, expect, it, vi } from 'vitest'
 import { nutrition } from 'data-platform'
+import { useState } from 'preact/hooks'
+import { dayOf } from '../day.ts'
 import type { TargetsPort } from '../targets/targets-port.ts'
 import { servings } from '../log/servings.ts'
 import type { LogStore, NewLogEntry } from '../log/log-store.ts'
@@ -11,17 +13,25 @@ import { DayScreen, type DayScreenProps } from './DayScreen.tsx'
 // 2026-03-10 12:00 in America/New_York (the test time zone).
 const NOW = new Date('2026-03-10T16:00:00Z')
 
-function renderScreen(props: Partial<DayScreenProps> = {}) {
-  return render(
+/** Holds the viewed Day the way the router does: it starts on today and follows `onDayChange`. */
+function Harness(props: Partial<DayScreenProps>) {
+  const [day, setDay] = useState(dayOf(NOW))
+  return (
     <DayScreen
       log={fakeLogStore()}
       targets={fakeTargetsPort()}
       now={NOW}
+      day={day}
+      onDayChange={setDay}
       onOpenEntry={() => {}}
       onLog={() => {}}
       {...props}
-    />,
+    />
   )
+}
+
+function renderScreen(props: Partial<DayScreenProps> = {}) {
+  return render(<Harness {...props} />)
 }
 
 describe('DayScreen day navigation', () => {
