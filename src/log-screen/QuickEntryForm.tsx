@@ -3,22 +3,21 @@ import type { JSX } from 'preact'
 import { nutrition } from 'data-platform'
 import { Button } from 'household-ui/ui/Button.tsx'
 import { TextField } from 'household-ui/ui/TextField.tsx'
-import type { Day } from '../day.ts'
 import { errorMessage } from '../error-message.ts'
-import type { Foods } from '../foods/foods.ts'
-import type { LogStore } from '../log/log-store.ts'
-import { rescaleNutrition } from '../log/rescale.ts'
-import { servings } from '../log/servings.ts'
+import type { FoodFields, Foods } from '../foods/foods.ts'
 import { useConfirmFields } from './confirm-fields.tsx'
+import { logPicked, type LogStepProps } from './log-picked.ts'
 
 type MacroKey = keyof nutrition.Nutrition
 
-const MACROS: readonly { key: MacroKey; label: string; toValue: (value: number) => nutrition.Nutrition[MacroKey] }[] = [
-  { key: 'kcal', label: 'Calories (kcal)', toValue: nutrition.kcal },
-  { key: 'proteinG', label: 'Protein (g)', toValue: nutrition.grams },
-  { key: 'carbsG', label: 'Carbs (g)', toValue: nutrition.grams },
-  { key: 'fatG', label: 'Fat (g)', toValue: nutrition.grams },
+const MACROS: readonly { key: MacroKey; label: string }[] = [
+  { key: 'kcal', label: 'Calories (kcal)' },
+  { key: 'proteinG', label: 'Protein (g)' },
+  { key: 'carbsG', label: 'Carbs (g)' },
+  { key: 'fatG', label: 'Fat (g)' },
 ]
+
+type MacroText = Record<MacroKey, string>
 
 /** The message for a macro's text, or undefined when it is a number of zero or more. */
 function macroError(text: string): string | undefined {
@@ -29,16 +28,17 @@ function macroError(text: string): string | undefined {
   return undefined
 }
 
-export interface QuickEntryFormProps {
-  log: LogStore
-  foods: Foods
-  day: Day
-  now: Date
-  /** Called once the entry is saved. */
-  onSaved: () => void
-  /** Called to go back to choosing. */
-  onBack: () => void
+/** The per-Serving Nutrition the macro texts hold; only call it once every text is valid. */
+function toNutrition(text: MacroText): nutrition.Nutrition {
+  return {
+    kcal: nutrition.kcal(Number(text.kcal)),
+    proteinG: nutrition.grams(Number(text.proteinG)),
+    carbsG: nutrition.grams(Number(text.carbsG)),
+    fatG: nutrition.grams(Number(text.fatG)),
+  }
 }
+
+export type QuickEntryFormProps = LogStepProps & { foods: Foods }
 
 /**
  * A name and per-Serving Nutrition typed once, with the confirm fields, logged as a Quick Entry; or,
@@ -47,48 +47,68 @@ export interface QuickEntryFormProps {
 export function QuickEntryForm({ log, foods, day, now, onSaved, onBack }: QuickEntryFormProps) {
   const { values, fields } = useConfirmFields(day, now)
   const [name, setName] = useState('')
-  const [macroText, setMacroText] = useState<Record<MacroKey, string>>({ kcal: '', proteinG: '', carbsG: '', fatG: '' })
+  const [macroText, setMacroText] = useState<MacroText>({ kcal: '', proteinG: '', carbsG: '', fatG: '' })
   const [saveAsFood, setSaveAsFood] = useState(false)
   const [place, setPlace] = useState('')
   const [servingLabel, setServingLabel] = useState('')
   const [estimated, setEstimated] = useState(false)
-  /** The Food created by a save whose logging then failed, so a retry logs it rather than saving a second one. */
-  const createdFood = useRef<nutrition.FoodId | null>(null)
+  /** The Food created by a save whose logging then failed, with the fields it was saved with, so a retry brings it up to date rather than saving a second one. */
+  const createdFood = useRef<{ id: nutrition.FoodId; fields: FoodFields } | null>(null)
+  /** The fields the Member has typed in, whose messages show; the rest stay quiet until they do. */
+  const [touched, setTouched] = useState<ReadonlySet<'name' | MacroKey>>(new Set())
+  const touch = (field: 'name' | MacroKey) => setTouched((previous) => new Set(previous).add(field))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const trimmedName = name.trim()
   const nameError = trimmedName === '' ? 'Enter a name.' : undefined
-  const macroErrors = Object.fromEntries(MACROS.map(({ key }) => [key, macroError(macroText[key])])) as Record<
-    MacroKey,
-    string | undefined
-  >
+  const macroErrors: Record<MacroKey, string | undefined> = {
+    kcal: macroError(macroText.kcal),
+    proteinG: macroError(macroText.proteinG),
+    carbsG: macroError(macroText.carbsG),
+    fatG: macroError(macroText.fatG),
+  }
   const valid = values !== undefined && nameError === undefined && MACROS.every(({ key }) => macroErrors[key] === undefined)
 
   async function handleSubmit(event: JSX.TargetedEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!valid || saving) return
-    const perServing = Object.fromEntries(MACROS.map(({ key, toValue }) => [key, toValue(Number(macroText[key]))])) as unknown as nutrition.Nutrition
+    const perServing = toNutrition(macroText)
     setSaving(true)
     setError(null)
     try {
       let source: nutrition.LogEntrySource = { kind: 'quick' }
       if (saveAsFood) {
-        createdFood.current ??= await foods.add({
+        const foodFields: FoodFields = {
           name: trimmedName,
           ...(place.trim() !== '' && { place: place.trim() }),
           ...(servingLabel.trim() !== '' && { servingLabel: servingLabel.trim() }),
           perServing,
           estimated,
-        })
-        source = { kind: 'food', foodId: createdFood.current }
+        }
+        const created = createdFood.current
+        let foodId: nutrition.FoodId
+        if (created === null) {
+          foodId = await foods.add(foodFields)
+          createdFood.current = { id: foodId, fields: foodFields }
+        } else {
+          foodId = created.id
+          if (JSON.stringify(created.fields) !== JSON.stringify(foodFields)) {
+            await foods.edit(foodId, {
+              ...foodFields,
+              place: foodFields.place ?? null,
+              servingLabel: foodFields.servingLabel ?? null,
+            })
+            createdFood.current = { id: foodId, fields: foodFields }
+          }
+        }
+        source = { kind: 'food', foodId }
+      } else if (createdFood.current !== null) {
+        // A first attempt saved a Food that the Member has since opted out of: drop it, so it is not left behind unlogged.
+        await foods.softDelete(createdFood.current.id)
+        createdFood.current = null
       }
-      await log.create({
-        name: trimmedName,
-        source,
-        nutrition: rescaleNutrition(perServing, servings(1), values.servings),
-        ...values,
-      })
+      await logPicked(log, { name: trimmedName, source, perServing }, values)
       onSaved()
     } catch (err) {
       setError(errorMessage(err, 'Could not save.'))
@@ -106,8 +126,11 @@ export function QuickEntryForm({ log, foods, day, now, onSaved, onBack }: QuickE
         <TextField
           label="Name"
           value={name}
-          onInput={(event) => setName(event.currentTarget.value)}
-          error={nameError}
+          onInput={(event) => {
+            touch('name')
+            setName(event.currentTarget.value)
+          }}
+          error={touched.has('name') ? nameError : undefined}
         />
         {MACROS.map(({ key, label }) => (
           <TextField
@@ -117,8 +140,11 @@ export function QuickEntryForm({ log, foods, day, now, onSaved, onBack }: QuickE
             inputMode="decimal"
             step="any"
             value={macroText[key]}
-            onInput={(event) => setMacroText({ ...macroText, [key]: event.currentTarget.value })}
-            error={macroErrors[key]}
+            onInput={(event) => {
+              touch(key)
+              setMacroText({ ...macroText, [key]: event.currentTarget.value })
+            }}
+            error={touched.has(key) ? macroErrors[key] : undefined}
           />
         ))}
         <label>

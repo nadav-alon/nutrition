@@ -303,4 +303,59 @@ describe('LogScreen Quick Entry saved as a Food', () => {
     expect(create).toHaveBeenCalledTimes(2)
     expect(foodsIn(foods).filter((food) => food.name === 'Apple')).toHaveLength(1)
   })
+
+  it('on a retry after editing the fields, brings the Food it saved up to date and logs against it', async () => {
+    const { foods, log, onDone } = await setup({ withRecents: false })
+    vi.spyOn(log, 'create').mockRejectedValueOnce(new Error('offline'))
+    fillQuick('Apple', apple)
+    fireEvent.click(screen.getByLabelText('Save as Food'))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await screen.findByRole('alert')
+    fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Green apple' } })
+    fireEvent.input(screen.getByLabelText('Calories (kcal)'), { target: { value: '80' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    const apples = foodsIn(foods).filter((food) => food.name.includes('apple') || food.name.includes('Apple'))
+    expect(apples).toHaveLength(1)
+    expect(apples[0]).toMatchObject({ name: 'Green apple', perServing: { kcal: 80 } })
+    expect(entriesOn(log, TODAY)).toEqual([
+      expect.objectContaining({ name: 'Green apple', source: { kind: 'food', foodId: apples[0]?.id } }),
+    ])
+  })
+
+  it('on a retry with Save as Food unticked, removes the Food the first attempt saved and logs a Quick Entry', async () => {
+    const { foods, log, onDone } = await setup({ withRecents: false })
+    vi.spyOn(log, 'create').mockRejectedValueOnce(new Error('offline'))
+    fillQuick('Apple', apple)
+    fireEvent.click(screen.getByLabelText('Save as Food'))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await screen.findByRole('alert')
+    fireEvent.click(screen.getByLabelText('Save as Food'))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    expect(foodsIn(foods).map((food) => food.name)).toEqual(['Schnitzel plate'])
+    expect(entriesOn(log, TODAY)).toEqual([expect.objectContaining({ name: 'Apple', source: { kind: 'quick' } })])
+  })
+
+  it('logs once when Save is submitted twice at once', async () => {
+    const { foods, log, onDone } = await setup({ withRecents: false })
+    fillQuick('Apple', apple)
+    fireEvent.click(screen.getByLabelText('Save as Food'))
+    const form = screen.getByRole('button', { name: 'Save' }).closest('form') as HTMLFormElement
+    fireEvent.submit(form)
+    fireEvent.submit(form)
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    expect(entriesOn(log, TODAY)).toHaveLength(1)
+    expect(foodsIn(foods).filter((food) => food.name === 'Apple')).toHaveLength(1)
+  })
+
+  it('shows no validation message until a field has been typed in', async () => {
+    await setup({ withRecents: false })
+    fireEvent.click(screen.getByRole('button', { name: 'Quick entry' }))
+    expect(screen.queryByText('Enter a name.')).toBeNull()
+    expect(screen.queryByText('Enter a number.')).toBeNull()
+    fireEvent.input(screen.getByLabelText('Name'), { target: { value: ' ' } })
+    expect(screen.getByText('Enter a name.')).toBeInTheDocument()
+    expect(screen.queryByText('Enter a number.')).toBeNull()
+  })
 })
