@@ -241,6 +241,19 @@ describe('FoodsScreen delete', () => {
     expect(screen.getByLabelText('Name')).toHaveValue('Canteen schnitzel')
   })
 
+  it('ignores a second Delete while the first is in flight, and disables Save', async () => {
+    const foods = await opened()
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    let release: () => void = () => {}
+    const softDelete = vi.spyOn(foods, 'softDelete').mockReturnValue(new Promise<void>((resolve) => (release = resolve)))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(softDelete).toHaveBeenCalledOnce()
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    release()
+  })
+
   it('keeps the form and says so when deleting fails', async () => {
     const foods = await opened()
     vi.spyOn(window, 'confirm').mockReturnValue(true)

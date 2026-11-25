@@ -93,13 +93,15 @@ export function FoodForm({ foods, food, onDone }: FoodFormProps) {
   }
 
   async function handleDelete() {
-    if (food === undefined || !confirm(`Delete "${food.name}"?`)) return
+    if (saving || food === undefined || !confirm(`Delete "${food.name}"?`)) return
     setSaveError(null)
+    setSaving(true)
     try {
       await foods.softDelete(food.id)
       onDone()
     } catch (error) {
       setSaveError(errorMessage(error, 'Could not delete.'))
+      setSaving(false)
     }
   }
 
@@ -154,7 +156,7 @@ export function FoodForm({ foods, food, onDone }: FoodFormProps) {
         </Button>
       </form>
       {food !== undefined && (
-        <Button variant="text" destructive onClick={handleDelete}>
+        <Button variant="text" destructive disabled={saving} onClick={handleDelete}>
           Delete
         </Button>
       )}
