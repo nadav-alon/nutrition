@@ -55,6 +55,15 @@ describe('App routes', () => {
     expect(screen.queryByRole('heading', { name: previousDay(today) })).toBeNull()
   })
 
+  it("opens an estimate link on today's Quick Entry, filled in", () => {
+    location.hash = '#/log?name=Soup&kcal=200&protein=10&carbs=20&fat=5&servings=2&est=1'
+    render(<App {...ports()} />)
+    expect(screen.getByRole('heading', { name: 'Quick entry' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Name')).toHaveValue('Soup')
+    expect(screen.getByLabelText('Servings')).toHaveValue(2)
+    expect(screen.getByLabelText('Estimated')).toBeChecked()
+  })
+
   it('opens a Log Entry from the Day, and finds it again from its URL', async () => {
     const p = ports()
     await p.log.create({

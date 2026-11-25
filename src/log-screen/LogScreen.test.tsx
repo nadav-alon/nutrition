@@ -7,6 +7,7 @@ import type { FoodFields, Foods, SavedFood } from '../foods/foods.ts'
 import { fakeLogStore } from '../log/fake-log-store.ts'
 import type { LogEntry, LogStore } from '../log/log-store.ts'
 import { quickToast, schnitzel } from '../log/log-store.contract.ts'
+import type { EstimateLink } from '../estimate-link.ts'
 import { LogScreen } from './LogScreen.tsx'
 
 const { grams, kcal } = nutrition
@@ -414,5 +415,73 @@ describe('LogScreen Quick Entry that is Estimated but not saved as a Food', () =
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(onDone).toHaveBeenCalled())
     expect(entriesOn(log, TODAY)[0]?.estimated).toBeUndefined()
+  })
+})
+
+describe('LogScreen opened from an estimate link', () => {
+  const full: EstimateLink = {
+    name: 'Shawarma plate',
+    place: 'Hummus Bar',
+    kcal: '820',
+    proteinG: '41',
+    carbsG: '70',
+    fatG: '38',
+    servings: '1.5',
+    estimated: true,
+  }
+
+  async function setupLink(estimate: EstimateLink) {
+    const foods: Foods = fakeFoods()
+    const log: LogStore = fakeLogStore()
+    const onDone = vi.fn()
+    render(<LogScreen log={log} foods={foods} day={TODAY} now={NOW} onDone={onDone} estimate={estimate} />)
+    return { foods, log, onDone }
+  }
+
+  it('opens a Quick Entry filled from a full link, with Save as Food ticked and Estimated set', async () => {
+    await setupLink(full)
+    expect(screen.getByLabelText('Name')).toHaveValue('Shawarma plate')
+    expect(screen.getByLabelText('Place (optional)')).toHaveValue('Hummus Bar')
+    expect(screen.getByLabelText('Calories (kcal)')).toHaveValue(820)
+    expect(screen.getByLabelText('Protein (g)')).toHaveValue(41)
+    expect(screen.getByLabelText('Carbs (g)')).toHaveValue(70)
+    expect(screen.getByLabelText('Fat (g)')).toHaveValue(38)
+    expect(screen.getByLabelText('Servings')).toHaveValue(1.5)
+    expect(screen.getByLabelText('Save as Food')).toBeChecked()
+    expect(screen.getByLabelText('Estimated')).toBeChecked()
+    expect(screen.getByLabelText('Meal type')).toHaveValue('lunch')
+    expect(screen.getByLabelText('Eaten at')).toHaveValue('2026-03-10T13:05')
+  })
+
+  it('saves nothing until Save, then saves the Food and logs it with the servings', async () => {
+    const { foods, log, onDone } = await setupLink(full)
+    expect(foodsIn(foods)).toEqual([])
+    expect(entriesOn(log, TODAY)).toEqual([])
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    expect(foodsIn(foods)).toEqual([
+      expect.objectContaining({ name: 'Shawarma plate', place: 'Hummus Bar', estimated: true }),
+    ])
+    expect(entriesOn(log, TODAY)).toEqual([expect.objectContaining({ name: 'Shawarma plate', servings: 1.5 })])
+  })
+
+  it('leaves what a partial link omits empty, blocks Save, and stays editable', async () => {
+    await setupLink({ ...full, place: '', kcal: '', proteinG: '', carbsG: '', fatG: '', servings: '1', estimated: false })
+    expect(screen.getByLabelText('Name')).toHaveValue('Shawarma plate')
+    expect(screen.getByLabelText('Calories (kcal)')).toHaveValue(null)
+    expect(screen.getByLabelText('Servings')).toHaveValue(1)
+    expect(screen.getByLabelText('Estimated')).not.toBeChecked()
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    fireEvent.input(screen.getByLabelText('Calories (kcal)'), { target: { value: '500' } })
+    fireEvent.input(screen.getByLabelText('Protein (g)'), { target: { value: '20' } })
+    fireEvent.input(screen.getByLabelText('Carbs (g)'), { target: { value: '50' } })
+    fireEvent.input(screen.getByLabelText('Fat (g)'), { target: { value: '10' } })
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
+  })
+
+  it('blocks Save for an invalid link, with no name and no Nutrition', async () => {
+    await setupLink({ ...full, name: '', place: '', kcal: '', proteinG: '', carbsG: '', fatG: '', servings: '1', estimated: false })
+    expect(screen.getByLabelText('Name')).toHaveValue('')
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
   })
 })

@@ -3,6 +3,7 @@ import type { JSX } from 'preact'
 import { nutrition } from 'data-platform'
 import { Button } from 'household-ui/ui/Button.tsx'
 import { TextField } from 'household-ui/ui/TextField.tsx'
+import type { EstimateLink } from '../estimate-link.ts'
 import { errorMessage } from '../error-message.ts'
 import type { FoodFields, Foods } from '../foods/foods.ts'
 import { useConfirmFields } from './confirm-fields.tsx'
@@ -38,20 +39,29 @@ function toNutrition(text: MacroText): nutrition.Nutrition {
   }
 }
 
-export type QuickEntryFormProps = LogStepProps & { foods: Foods }
+export type QuickEntryFormProps = LogStepProps & {
+  foods: Foods
+  /** An estimate to start the form from; "Save as Food" then starts ticked. */
+  estimate?: EstimateLink
+}
 
 /**
  * A name and per-Serving Nutrition typed once, with the confirm fields, logged as a Quick Entry; or,
  * with "Save as Food", saved as a Food first and logged as an entry of that Food.
  */
-export function QuickEntryForm({ log, foods, day, now, onSaved, onBack }: QuickEntryFormProps) {
-  const { values, fields } = useConfirmFields(day, now)
-  const [name, setName] = useState('')
-  const [macroText, setMacroText] = useState<MacroText>({ kcal: '', proteinG: '', carbsG: '', fatG: '' })
-  const [saveAsFood, setSaveAsFood] = useState(false)
-  const [place, setPlace] = useState('')
+export function QuickEntryForm({ log, foods, day, now, estimate, onSaved, onBack }: QuickEntryFormProps) {
+  const { values, fields } = useConfirmFields(day, now, estimate?.servings)
+  const [name, setName] = useState(estimate?.name ?? '')
+  const [macroText, setMacroText] = useState<MacroText>({
+    kcal: estimate?.kcal ?? '',
+    proteinG: estimate?.proteinG ?? '',
+    carbsG: estimate?.carbsG ?? '',
+    fatG: estimate?.fatG ?? '',
+  })
+  const [saveAsFood, setSaveAsFood] = useState(estimate !== undefined)
+  const [place, setPlace] = useState(estimate?.place ?? '')
   const [servingLabel, setServingLabel] = useState('')
-  const [estimated, setEstimated] = useState(false)
+  const [estimated, setEstimated] = useState(estimate?.estimated ?? false)
   /** The Food created by a save whose logging then failed, with the fields it was saved with, so a retry brings it up to date rather than saving a second one. */
   const createdFood = useRef<{ id: nutrition.FoodId; fields: FoodFields } | null>(null)
   /** The fields the Member has typed in, whose messages show; the rest stay quiet until they do. */
