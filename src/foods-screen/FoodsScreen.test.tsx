@@ -1,8 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/preact'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/preact'
+import { describe, expect, it, vi } from 'vitest'
 import type { Foods } from '../foods/foods.ts'
 import { fakeFoods } from '../foods/fake-foods.ts'
-import { apple, schnitzel } from '../foods/foods.contract.ts'
+import { apple, listed, schnitzel } from '../foods/foods.contract.ts'
 import { FoodsScreen } from './FoodsScreen.tsx'
 
 describe('FoodsScreen list', () => {
@@ -65,5 +65,87 @@ describe('FoodsScreen search', () => {
     await searched('pizza')
     expect(screen.queryByRole('listitem')).toBeNull()
     expect(screen.getByText('No Foods match.')).toBeInTheDocument()
+  })
+})
+
+function fill(label: string, value: string) {
+  fireEvent.input(screen.getByLabelText(label), { target: { value } })
+}
+
+function fillNutrition(kcal: string, protein: string, carbs: string, fat: string) {
+  fill('Calories (kcal)', kcal)
+  fill('Protein (g)', protein)
+  fill('Carbs (g)', carbs)
+  fill('Fat (g)', fat)
+}
+
+describe('FoodsScreen add', () => {
+  it('saves a new Food from the form and returns to the list showing it', async () => {
+    const foods = fakeFoods()
+    render(<FoodsScreen foods={foods} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Add food' }))
+    fill('Name', ' Falafel ')
+    fill('Place', 'Corner stall')
+    fill('Serving label', '1 pita')
+    fillNutrition('450', '15', '55', '18')
+    fireEvent.click(screen.getByLabelText('Estimated'))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    const row = await screen.findByRole('listitem')
+    expect(row).toHaveTextContent('Falafel')
+    expect(row).toHaveTextContent('Corner stall · 450 kcal')
+    expect(row).toHaveTextContent('Estimated')
+    expect(await listed(foods)).toEqual([
+      expect.objectContaining({
+        name: 'Falafel',
+        place: 'Corner stall',
+        servingLabel: '1 pita',
+        perServing: { kcal: 450, proteinG: 15, carbsG: 55, fatG: 18 },
+        estimated: true,
+      }),
+    ])
+  })
+
+  it('leaves out an empty place and serving label', async () => {
+    const foods = fakeFoods()
+    render(<FoodsScreen foods={foods} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Add food' }))
+    fill('Name', 'Apple')
+    fillNutrition('95', '0', '25', '0')
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await screen.findByRole('listitem')
+    const [food] = await listed(foods)
+    expect(food).not.toHaveProperty('place')
+    expect(food).not.toHaveProperty('servingLabel')
+    expect(food?.estimated).toBe(false)
+  })
+
+  it.each([
+    ['a missing name', () => fill('Name', ' '), 'Name'],
+    ['a missing Nutrition value', () => fill('Fat (g)', ''), 'Fat (g)'],
+    ['a negative Nutrition value', () => fill('Protein (g)', '-1'), 'Protein (g)'],
+  ])('blocks saving with %s, with a message on that field', async (_name, spoil, label) => {
+    const foods = fakeFoods()
+    const add = vi.spyOn(foods, 'add')
+    render(<FoodsScreen foods={foods} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Add food' }))
+    fill('Name', 'Apple')
+    fillNutrition('95', '0', '25', '0')
+    spoil()
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(screen.getByLabelText(label)).toBeInvalid()
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(add).not.toHaveBeenCalled()
+  })
+
+  it('keeps the form and says so when saving fails', async () => {
+    const foods = fakeFoods()
+    vi.spyOn(foods, 'add').mockRejectedValue(new Error('offline'))
+    render(<FoodsScreen foods={foods} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Add food' }))
+    fill('Name', 'Apple')
+    fillNutrition('95', '0', '25', '0')
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('offline'))
+    expect(screen.getByLabelText('Name')).toHaveValue('Apple')
   })
 })
