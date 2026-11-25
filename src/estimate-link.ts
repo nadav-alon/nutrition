@@ -20,6 +20,18 @@ function nonNegative(value: string | null): string {
   return Number.isFinite(number) && number >= 0 ? value.trim() : ''
 }
 
+/** The query key each field of an estimate link is read from. */
+const QUERY_KEYS = {
+  name: 'name',
+  place: 'place',
+  kcal: 'kcal',
+  proteinG: 'protein',
+  carbsG: 'carbs',
+  fatG: 'fat',
+  servings: 'servings',
+  estimated: 'est',
+} as const
+
 /**
  * The estimate link a query string carries (`name`, `place`, `kcal`, `protein`, `carbs`, `fat`,
  * `servings`, `est`), or undefined when it carries none of them. A value that is missing or invalid
@@ -28,17 +40,17 @@ function nonNegative(value: string | null): string {
  */
 export function parseEstimateLink(query: string): EstimateLink | undefined {
   const params = new URLSearchParams(query)
-  const fields = ['name', 'place', 'kcal', 'protein', 'carbs', 'fat', 'servings', 'est']
-  if (!fields.some((field) => params.has(field))) return undefined
-  const servings = nonNegative(params.get('servings'))
+  if (!Object.values(QUERY_KEYS).some((key) => params.has(key))) return undefined
+  const read = (field: keyof typeof QUERY_KEYS) => params.get(QUERY_KEYS[field])
+  const servings = nonNegative(read('servings'))
   return {
-    name: params.get('name')?.trim() ?? '',
-    place: params.get('place')?.trim() ?? '',
-    kcal: nonNegative(params.get('kcal')),
-    proteinG: nonNegative(params.get('protein')),
-    carbsG: nonNegative(params.get('carbs')),
-    fatG: nonNegative(params.get('fat')),
+    name: read('name')?.trim() ?? '',
+    place: read('place')?.trim() ?? '',
+    kcal: nonNegative(read('kcal')),
+    proteinG: nonNegative(read('proteinG')),
+    carbsG: nonNegative(read('carbsG')),
+    fatG: nonNegative(read('fatG')),
     servings: servings === '' || Number(servings) === 0 ? '1' : servings,
-    estimated: params.get('est') === '1',
+    estimated: read('estimated') === '1',
   }
 }
