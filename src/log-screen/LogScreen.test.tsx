@@ -394,3 +394,25 @@ describe('LogScreen Quick Entry saved as a Food', () => {
     expect(screen.queryByText('Enter a number.')).toBeNull()
   })
 })
+
+describe('LogScreen Quick Entry that is Estimated but not saved as a Food', () => {
+  it('stores the Log Entry as estimated, with no Food created', async () => {
+    const { foods, log, onDone } = await setup({ withRecents: false })
+    fillQuick('Apple', apple)
+    fireEvent.click(screen.getByLabelText('Estimated'))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    expect(entriesOn(log, TODAY)).toEqual([
+      expect.objectContaining({ name: 'Apple', source: { kind: 'quick' }, estimated: true }),
+    ])
+    expect(foodsIn(foods).map((food) => food.name)).toEqual(['Schnitzel plate'])
+  })
+
+  it('leaves the entry unflagged when not Estimated', async () => {
+    const { log, onDone } = await setup({ withRecents: false })
+    fillQuick('Apple', apple)
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    expect(entriesOn(log, TODAY)[0]?.estimated).toBeUndefined()
+  })
+})

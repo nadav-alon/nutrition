@@ -108,7 +108,7 @@ export function QuickEntryForm({ log, foods, day, now, onSaved, onBack }: QuickE
         await foods.softDelete(createdFood.current.id)
         createdFood.current = null
       }
-      await logPicked(log, { name: trimmedName, source, perServing }, values)
+      await logPicked(log, { name: trimmedName, source, perServing, ...(!saveAsFood && estimated && { estimated: true as const }) }, values)
       onSaved()
     } catch (err) {
       setError(errorMessage(err, 'Could not save.'))
@@ -163,16 +163,16 @@ export function QuickEntryForm({ log, foods, day, now, onSaved, onBack }: QuickE
               value={servingLabel}
               onInput={(event) => setServingLabel(event.currentTarget.value)}
             />
-            <label>
-              <input
-                type="checkbox"
-                checked={estimated}
-                onChange={(event) => setEstimated(event.currentTarget.checked)}
-              />{' '}
-              Estimated
-            </label>
           </>
         )}
+        <label>
+          <input
+            type="checkbox"
+            checked={estimated}
+            onChange={(event) => setEstimated(event.currentTarget.checked)}
+          />{' '}
+          Estimated
+        </label>
         {fields}
         {error !== null && <p role="alert">{error}</p>}
         <Button type="submit" variant="filled" disabled={!valid || saving}>

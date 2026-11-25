@@ -77,6 +77,15 @@ export function logStoreContract(name: string, makeStore: () => Promise<LogStore
         day.unsubscribe()
       })
 
+      it('keeps a Quick Entry marked estimated, and leaves the flag off one that is not', async () => {
+        await store.create({ ...quickToast, estimated: true })
+        await store.create(schnitzel)
+        const day = watchDay(store)
+        await day.names(['Toast', 'Schnitzel plate'])
+        expect(day.latest()?.map((entry) => entry.estimated)).toEqual([true, undefined])
+        day.unsubscribe()
+      })
+
       it('rejects an entry whose servings are not positive or whose name is empty', async () => {
         await expect(store.create({ ...quickToast, servings: 0 as number as Servings })).rejects.toThrow()
         await expect(store.create({ ...quickToast, servings: -1 as number as Servings })).rejects.toThrow()

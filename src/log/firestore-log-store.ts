@@ -109,6 +109,7 @@ function toDocument(entry: NewLogEntry): DocumentData {
     servings: entry.servings,
     mealType: entry.mealType,
     eatenAt: Timestamp.fromDate(entry.eatenAt),
+    ...(entry.estimated && { estimated: true }),
   }
 }
 
@@ -123,6 +124,7 @@ function toLogEntry(snapshot: DocumentSnapshot): LogEntry {
     servings: servings(data.servings),
     mealType: data.mealType,
     eatenAt: eatenAt instanceof Date ? eatenAt : new Timestamp(eatenAt.seconds, eatenAt.nanoseconds).toDate(),
+    ...(data.estimated && { estimated: true as const }),
   }
 }
 

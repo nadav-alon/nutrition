@@ -11,6 +11,8 @@ export interface Picked {
   readonly source: nutrition.LogEntrySource
   readonly perServing: nutrition.Nutrition
   readonly servingLabel?: string
+  /** The Nutrition is an estimate; set on a Quick Entry only, since a Food carries its own flag. */
+  readonly estimated?: true
 }
 
 /** What both steps after choosing take: where to log, and how to leave. */
@@ -30,6 +32,7 @@ export function logPicked(log: LogStore, picked: Picked, values: ConfirmValues):
     name: picked.name,
     source: picked.source,
     nutrition: rescaleNutrition(picked.perServing, servings(1), values.servings),
+    ...(picked.estimated && { estimated: true as const }),
     ...values,
   })
 }
