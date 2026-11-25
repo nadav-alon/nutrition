@@ -1,15 +1,15 @@
-import { useEffect, useState } from 'preact/hooks'
 import { TopAppBar } from 'household-ui/shell/TopAppBar.tsx'
 import { Button } from 'household-ui/ui/Button.tsx'
 import type { nutrition } from 'data-platform'
 import { AccountAction } from './gate/account.tsx'
-import { dayEnd, dayOf, dayStart, type Day } from './day.ts'
+import { dayOf, type Day } from './day.ts'
 import { DayScreen } from './day-screen/DayScreen.tsx'
 import { FoodsScreen } from './foods-screen/FoodsScreen.tsx'
 import type { Foods } from './foods/foods.ts'
 import { LogScreen } from './log-screen/LogScreen.tsx'
 import { LogEntryScreen } from './log/LogEntryScreen.tsx'
-import type { LogEntry, LogStore } from './log/log-store.ts'
+import type { LogStore } from './log/log-store.ts'
+import { useDayEntries } from './log/use-day-entries.ts'
 import type { Route } from './routes.ts'
 import { TargetsScreen } from './targets/TargetsScreen.tsx'
 import type { TargetsPort } from './targets/targets-port.ts'
@@ -26,8 +26,9 @@ export interface AppPorts {
 export function App({ log, foods, targets }: AppPorts) {
   const now = new Date()
   const today = dayOf(now)
-  const [route, go] = useRoute(today)
+  const [route, go, back] = useRoute(today)
   const home: Route = { name: 'day', day: today }
+  const backToDay = (day: Day) => back({ name: 'day', day })
   return (
     <TopAppBar title="Nutrition">
       <AccountAction />
@@ -53,35 +54,40 @@ export function App({ log, foods, targets }: AppPorts) {
         </>
       )}
       {route.name === 'log' && (
-        <LogScreen log={log} foods={foods} day={route.day} now={now} onDone={() => go({ name: 'day', day: route.day })} />
+        <LogScreen log={log} foods={foods} day={route.day} now={now} onDone={() => backToDay(route.day)} />
       )}
       {route.name === 'entry' && (
-        <EntryRoute log={log} day={route.day} id={route.id} onDone={() => go({ name: 'day', day: route.day })} />
+        <LogEntryLoader log={log} day={route.day} id={route.id} onDone={() => backToDay(route.day)} />
       )}
       {route.name === 'foods' && (
-        <>
-          <FoodsScreen foods={foods} />
-          <div class="screen">
-            <Button variant="tonal" onClick={() => go(home)}>
-              Back
-            </Button>
-          </div>
-        </>
+        <FoodsScreen
+          foods={foods}
+          form={route.form}
+          onOpenForm={(form) => go({ name: 'foods', form })}
+          onCloseForm={() => back({ name: 'foods' })}
+          onLeave={() => back(home)}
+        />
       )}
-      {route.name === 'targets' && <TargetsScreen port={targets} onLeave={() => go(home)} />}
+      {route.name === 'targets' && <TargetsScreen port={targets} onLeave={() => back(home)} />}
     </TopAppBar>
   )
 }
 
 /** The Log Entry `id` on `day`, found by watching the Day, so a refresh on its URL still opens it. */
-function EntryRoute({ log, day, id, onDone }: { log: LogStore; day: Day; id: nutrition.LogEntryId; onDone: () => void }) {
-  const [entries, setEntries] = useState<readonly LogEntry[] | null>(null)
-  useEffect(() => {
-    setEntries(null)
-    return log.watchDay(dayStart(day), dayEnd(day), setEntries, () => setEntries([]))
-  }, [log, day])
-  const entry = entries?.find((candidate) => candidate.id === id)
-  if (entries === null) return <p class="screen">Loading…</p>
+function LogEntryLoader({ log, day, id, onDone }: { log: LogStore; day: Day; id: nutrition.LogEntryId; onDone: () => void }) {
+  const dayEntries = useDayEntries(log, day)
+  if (dayEntries.status === 'loading') return <p class="screen">Loading…</p>
+  if (dayEntries.status === 'error') {
+    return (
+      <div class="screen" role="alert">
+        <p>Could not load the entry.</p>
+        <Button variant="tonal" onClick={onDone}>
+          Back to the Day
+        </Button>
+      </div>
+    )
+  }
+  const entry = dayEntries.entries.find((candidate) => candidate.id === id)
   if (entry === undefined) {
     return (
       <div class="screen">

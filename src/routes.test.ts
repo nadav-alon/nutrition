@@ -9,6 +9,8 @@ const routes: Route[] = [
   { name: 'log', day: day('2026-03-09') },
   { name: 'entry', day: day('2026-03-09'), id: nutrition.logEntryId('a/b c') },
   { name: 'foods' },
+  { name: 'foods', form: 'new' },
+  { name: 'foods', form: nutrition.foodId('a/b c') },
   { name: 'targets' },
 ]
 
@@ -17,7 +19,7 @@ describe('routes', () => {
     expect(parseRoute(hashFor(route), today)).toEqual(route)
   })
 
-  it.each(['', '#', '#/', '#/nope', '#/day/not-a-day', '#/day/2026-13-40', '#/foods/x', '#/day/2026-03-09/entry', '#/day/2026-03-09/entry/%E0%A4%A'])(
+  it.each(['', '#', '#/', '#/nope', '#/day/not-a-day', '#/day/2026-13-40', '#/foods/x/y', '#/day/2026-03-09/entry', '#/day/2026-03-09/entry/%E0%A4%A'])(
     'reads %j as today\'s Day',
     (hash) => {
       expect(parseRoute(hash, today)).toEqual({ name: 'day', day: today })

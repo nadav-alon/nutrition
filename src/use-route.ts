@@ -3,20 +3,31 @@ import type { Day } from './day.ts'
 import { hashFor, parseRoute, type Route } from './routes.ts'
 
 /**
- * The route the location hash names, and how to go to another: a new history entry, so the browser's
- * back button returns to the previous screen and a refresh stays on this one.
+ * The route the location hash names, how to go to another (a new history entry, so the browser's
+ * back button returns to the previous screen and a refresh stays on this one), and how to finish
+ * with a screen: back to `route` when that is the entry just before, otherwise on to it.
  */
-export function useRoute(today: Day): [Route, (route: Route) => void] {
+export function useRoute(today: Day): [Route, (route: Route) => void, (route: Route) => void] {
   const [hash, setHash] = useState(() => location.hash)
   useEffect(() => {
     const onChange = () => setHash(location.hash)
     addEventListener('hashchange', onChange)
-    return () => removeEventListener('hashchange', onChange)
+    addEventListener('popstate', onChange)
+    return () => {
+      removeEventListener('hashchange', onChange)
+      removeEventListener('popstate', onChange)
+    }
   }, [])
   const go = (route: Route) => {
-    location.hash = hashFor(route)
-    // The hashchange event arrives a tick later; reading the hash now keeps the screen in step with the URL.
+    // The entry remembers the hash it was reached from, which is what `back` looks at.
+    history.pushState({ from: location.hash }, '', hashFor(route))
     setHash(location.hash)
   }
-  return [parseRoute(hash, today), go]
+  const back = (route: Route) => {
+    const from = (history.state as { from?: string } | null)?.from
+    // An empty hash reads as today's Day, so compare routes, not hash text.
+    if (from !== undefined && hashFor(parseRoute(from, today)) === hashFor(route)) history.back()
+    else go(route)
+  }
+  return [parseRoute(hash, today), go, back]
 }

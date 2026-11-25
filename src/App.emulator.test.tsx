@@ -1,9 +1,9 @@
 import { fireEvent, render, screen, within } from '@testing-library/preact'
 import { afterAll, beforeAll, beforeEach, expect, it } from 'vitest'
 import { core, nutrition } from 'data-platform'
-import { App } from './App.tsx'
+import { FirestoreApp } from './FirestoreApp.tsx'
+import { MemberContext } from './gate/account.tsx'
 import { firestoreFoods } from './foods/firestore-foods.ts'
-import { firestoreLogStore } from './log/firestore-log-store.ts'
 import { firestoreTargetsPort } from './targets/firestore-targets-port.ts'
 import { startEmulator, type Emulator } from './test/emulator.ts'
 
@@ -34,7 +34,11 @@ it('logs a Food, which then appears on today\'s Day against the Targets', async 
   })
   await targets.write({ kcal: nutrition.kcal(2000) })
 
-  render(<App log={firestoreLogStore(db, uid)} foods={foods} targets={targets} />)
+  render(
+    <MemberContext.Provider value={{ uid, email: core.email('member@example.com'), signOut: () => {} }}>
+      <FirestoreApp db={db} />
+    </MemberContext.Provider>,
+  )
   expect(await screen.findByText(/0 kcal eaten · 2000 kcal left/)).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Log' }))
   fireEvent.input(await screen.findByLabelText('Search foods'), { target: { value: 'schnitzel' } })
@@ -43,5 +47,6 @@ it('logs a Food, which then appears on today\'s Day against the Targets', async 
 
   expect(await screen.findByRole('heading', { name: 'Today' })).toBeInTheDocument()
   expect(await screen.findByText('Canteen schnitzel')).toBeInTheDocument()
-  expect(within(screen.getByRole('meter', { name: 'Calories' })).getByText(/620 kcal eaten · 1380 kcal left/)).toBeInTheDocument()
+  // The remounted Day hears the Targets again a moment after its entries.
+  expect(await within(screen.getByRole('meter', { name: 'Calories' })).findByText(/620 kcal eaten · 1380 kcal left/)).toBeInTheDocument()
 })

@@ -1,16 +1,24 @@
+import { useState } from 'preact/hooks'
+import type { nutrition } from 'data-platform'
 import { fireEvent, render, screen, waitFor } from '@testing-library/preact'
 import { describe, expect, it, vi } from 'vitest'
-import type { Foods } from '../foods/foods.ts'
+import type { Foods as FoodsPort } from '../foods/foods.ts'
 import { fakeFoods } from '../foods/fake-foods.ts'
 import { apple, listed, schnitzel } from '../foods/foods.contract.ts'
 import { FoodsScreen } from './FoodsScreen.tsx'
+
+/** The FoodsScreen with the open form kept in state, as the router keeps it in the URL. */
+function Foods({ foods: port }: { foods: FoodsPort }) {
+  const [form, setForm] = useState<'new' | nutrition.FoodId | undefined>()
+  return <FoodsScreen foods={port} form={form} onOpenForm={setForm} onCloseForm={() => setForm(undefined)} onLeave={() => {}} />
+}
 
 describe('FoodsScreen list', () => {
   it('lists live Foods by name with place and per-Serving kcal, and marks Estimated ones', async () => {
     const foods = fakeFoods()
     await foods.add(schnitzel)
     await foods.add(apple)
-    render(<FoodsScreen foods={foods} />)
+    render(<Foods foods={foods} />)
     const items = await screen.findAllByRole('listitem')
     expect(items).toHaveLength(2)
     expect(items[0]).toHaveTextContent('Apple')
@@ -22,19 +30,19 @@ describe('FoodsScreen list', () => {
   })
 
   it('says so when there are no Foods', async () => {
-    render(<FoodsScreen foods={fakeFoods()} />)
+    render(<Foods foods={fakeFoods()} />)
     expect(await screen.findByText('No Foods yet.')).toBeInTheDocument()
   })
 
   it('shows a listing failure', async () => {
-    const foods: Foods = {
+    const foods: FoodsPort = {
       ...fakeFoods(),
       watch(_listener, onError) {
         onError?.(new Error('boom'))
         return () => {}
       },
     }
-    render(<FoodsScreen foods={foods} />)
+    render(<Foods foods={foods} />)
     expect(await screen.findByRole('alert')).toHaveTextContent('boom')
   })
 })
@@ -44,7 +52,7 @@ describe('FoodsScreen search', () => {
     const foods = fakeFoods()
     await foods.add(schnitzel)
     await foods.add(apple)
-    render(<FoodsScreen foods={foods} />)
+    render(<Foods foods={foods} />)
     await screen.findAllByRole('listitem')
     fireEvent.input(screen.getByLabelText('Search'), { target: { value: query } })
   }
@@ -82,7 +90,7 @@ function fillNutrition(kcal: string, protein: string, carbs: string, fat: string
 describe('FoodsScreen add', () => {
   it('saves a new Food from the form and returns to the list showing it', async () => {
     const foods = fakeFoods()
-    render(<FoodsScreen foods={foods} />)
+    render(<Foods foods={foods} />)
     fireEvent.click(await screen.findByRole('button', { name: 'Add food' }))
     fill('Name', ' Falafel ')
     fill('Place', 'Corner stall')
@@ -107,7 +115,7 @@ describe('FoodsScreen add', () => {
 
   it('leaves out an empty place and serving label', async () => {
     const foods = fakeFoods()
-    render(<FoodsScreen foods={foods} />)
+    render(<Foods foods={foods} />)
     fireEvent.click(await screen.findByRole('button', { name: 'Add food' }))
     fill('Name', 'Apple')
     fillNutrition('95', '0', '25', '0')
@@ -126,7 +134,7 @@ describe('FoodsScreen add', () => {
   ])('blocks saving with %s, with a message on that field', async (_name, spoil, label) => {
     const foods = fakeFoods()
     const add = vi.spyOn(foods, 'add')
-    render(<FoodsScreen foods={foods} />)
+    render(<Foods foods={foods} />)
     fireEvent.click(await screen.findByRole('button', { name: 'Add food' }))
     fill('Name', 'Apple')
     fillNutrition('95', '0', '25', '0')
@@ -140,7 +148,7 @@ describe('FoodsScreen add', () => {
   it('keeps the form and says so when saving fails', async () => {
     const foods = fakeFoods()
     vi.spyOn(foods, 'add').mockRejectedValue(new Error('offline'))
-    render(<FoodsScreen foods={foods} />)
+    render(<Foods foods={foods} />)
     fireEvent.click(await screen.findByRole('button', { name: 'Add food' }))
     fill('Name', 'Apple')
     fillNutrition('95', '0', '25', '0')
@@ -154,7 +162,7 @@ describe('FoodsScreen edit', () => {
   async function opened() {
     const foods = fakeFoods()
     await foods.add(schnitzel)
-    render(<FoodsScreen foods={foods} />)
+    render(<Foods foods={foods} />)
     fireEvent.click(await screen.findByRole('button', { name: /Canteen schnitzel/ }))
     return foods
   }
@@ -211,13 +219,13 @@ describe('FoodsScreen delete', () => {
     const foods = fakeFoods()
     await foods.add(schnitzel)
     await foods.add(apple)
-    render(<FoodsScreen foods={foods} />)
+    render(<Foods foods={foods} />)
     fireEvent.click(await screen.findByRole('button', { name: /Canteen schnitzel/ }))
     return foods
   }
 
   it('offers no delete when adding', async () => {
-    render(<FoodsScreen foods={fakeFoods()} />)
+    render(<Foods foods={fakeFoods()} />)
     fireEvent.click(await screen.findByRole('button', { name: 'Add food' }))
     expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull()
   })
@@ -268,7 +276,7 @@ describe('FoodsScreen leaving the form', () => {
   async function opened() {
     const foods = fakeFoods()
     await foods.add(schnitzel)
-    render(<FoodsScreen foods={foods} />)
+    render(<Foods foods={foods} />)
     fireEvent.click(await screen.findByRole('button', { name: /Canteen schnitzel/ }))
   }
 
@@ -299,7 +307,7 @@ describe('FoodsScreen leaving the form', () => {
 
   it('counts a half-filled new Food as unsaved', async () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
-    render(<FoodsScreen foods={fakeFoods()} />)
+    render(<Foods foods={fakeFoods()} />)
     fireEvent.click(await screen.findByRole('button', { name: 'Add food' }))
     fill('Name', 'Apple')
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
@@ -310,7 +318,7 @@ describe('FoodsScreen leaving the form', () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
     const foods = fakeFoods()
     const add = vi.spyOn(foods, 'add')
-    render(<FoodsScreen foods={foods} />)
+    render(<Foods foods={foods} />)
     fireEvent.click(await screen.findByRole('button', { name: 'Add food' }))
     const field = screen.getByLabelText('Protein (g)')
     Object.defineProperty(field, 'validity', { value: { badInput: true }, configurable: true })

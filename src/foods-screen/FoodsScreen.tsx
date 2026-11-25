@@ -1,3 +1,4 @@
+import { nutrition } from 'data-platform'
 import { useEffect, useState } from 'preact/hooks'
 import { Button } from 'household-ui/ui/Button.tsx'
 import { ListRow } from 'household-ui/ui/ListRow.tsx'
@@ -8,6 +9,14 @@ import { FoodForm } from './FoodForm.tsx'
 
 export interface FoodsScreenProps {
   foods: Foods
+  /** The open form: `'new'` to add a Food, a Food's id to edit it, none for the list. */
+  form?: 'new' | nutrition.FoodId
+  /** Called when the Member opens the form to add a Food, or to edit the one with this id. */
+  onOpenForm: (form: 'new' | nutrition.FoodId) => void
+  /** Called when the form is done: after a save or delete, or when the Member backs out of it. */
+  onCloseForm: () => void
+  /** Called when the Member leaves the Foods for where they came from. */
+  onLeave: () => void
 }
 
 /** The supporting line of a Food's row: its place, when it has one, then the kcal of one Serving. */
@@ -23,9 +32,8 @@ function matches(food: SavedFood, query: string): boolean {
 }
 
 /** The Household's Foods: listed by name with place and per-Serving kcal, Estimated ones marked. */
-export function FoodsScreen({ foods }: FoodsScreenProps) {
+export function FoodsScreen({ foods, form, onOpenForm, onCloseForm, onLeave }: FoodsScreenProps) {
   const [list, setList] = useState<readonly SavedFood[] | null>(null)
-  const [form, setForm] = useState<{ food?: SavedFood } | null>(null)
   const [query, setQuery] = useState('')
   const [listError, setListError] = useState<string | null>(null)
 
@@ -33,9 +41,23 @@ export function FoodsScreen({ foods }: FoodsScreenProps) {
     return foods.watch(setList, (error) => setListError(errorMessage(error, 'Could not load Foods.')))
   }, [foods])
 
-  if (form !== null) return <FoodForm key={form.food?.id} foods={foods} food={form.food} onDone={() => setForm(null)} />
   if (listError !== null) return <main class="screen foods" role="alert">{listError}</main>
   if (list === null) return <main class="screen foods" />
+  if (form === 'new') return <FoodForm key="new" foods={foods} onDone={onCloseForm} />
+  if (form !== undefined) {
+    const food = list.find((candidate) => candidate.id === form)
+    if (food === undefined) {
+      return (
+        <main class="screen foods">
+          <p>That Food is no longer there.</p>
+          <Button variant="tonal" onClick={onCloseForm}>
+            Back to Foods
+          </Button>
+        </main>
+      )
+    }
+    return <FoodForm key={food.id} foods={foods} food={food} onDone={onCloseForm} />
+  }
   const shown = list.filter((food) => matches(food, query))
   return (
     <main class="screen foods">
@@ -51,14 +73,17 @@ export function FoodsScreen({ foods }: FoodsScreenProps) {
               key={food.id}
               headline={food.name}
               supporting={supportingLine(food)}
-              onActivate={() => setForm({ food })}
+              onActivate={() => onOpenForm(food.id)}
               trailing={food.estimated ? <span>Estimated</span> : undefined}
             />
           ))}
         </ul>
       )}
-      <Button variant="filled" onClick={() => setForm({})}>
+      <Button variant="filled" onClick={() => onOpenForm('new')}>
         Add food
+      </Button>
+      <Button variant="tonal" onClick={onLeave}>
+        Back
       </Button>
     </main>
   )

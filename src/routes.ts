@@ -6,7 +6,7 @@ export type Route =
   | { name: 'day'; day: Day }
   | { name: 'log'; day: Day }
   | { name: 'entry'; day: Day; id: nutrition.LogEntryId }
-  | { name: 'foods' }
+  | { name: 'foods'; form?: 'new' | nutrition.FoodId }
   | { name: 'targets' }
 
 /**
@@ -22,7 +22,7 @@ export function hashFor(route: Route): string {
     case 'entry':
       return `#/day/${route.day}/entry/${encodeURIComponent(route.id)}`
     case 'foods':
-      return '#/foods'
+      return route.form === undefined ? '#/foods' : `#/foods/${encodeURIComponent(route.form)}`
     case 'targets':
       return '#/targets'
   }
@@ -32,7 +32,12 @@ export function hashFor(route: Route): string {
 export function parseRoute(hash: string, today: Day): Route {
   const [first, second, third, fourth, ...rest] = hash.replace(/^#\/?/, '').split('/')
   if (rest.length === 0) {
-    if (first === 'foods' && second === undefined) return { name: 'foods' }
+    if (first === 'foods' && second === undefined && third === undefined) return { name: 'foods' }
+    if (first === 'foods' && second !== undefined && third === undefined) {
+      if (second === 'new') return { name: 'foods', form: 'new' }
+      const id = decodeFoodId(second)
+      if (id !== undefined) return { name: 'foods', form: id }
+    }
     if (first === 'targets' && second === undefined) return { name: 'targets' }
     if (first === 'day' && second !== undefined && isDay(second)) {
       if (third === undefined) return { name: 'day', day: second }
@@ -50,6 +55,15 @@ function decodeId(text: string): nutrition.LogEntryId | undefined {
   try {
     const decoded = decodeURIComponent(text)
     return nutrition.isLogEntryId(decoded) ? decoded : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function decodeFoodId(text: string): nutrition.FoodId | undefined {
+  try {
+    const decoded = decodeURIComponent(text)
+    return nutrition.isFoodId(decoded) ? decoded : undefined
   } catch {
     return undefined
   }

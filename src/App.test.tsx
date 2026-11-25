@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/preact'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nutrition } from 'data-platform'
 import { App, type AppPorts } from './App.tsx'
 import { dayOf, previousDay } from './day.ts'
@@ -74,5 +74,36 @@ describe('App routes', () => {
     render(<App {...p} />)
     expect(await screen.findByText('Toast')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Today' })).toBeNull()
+  })
+
+  it('gives the Foods form its own route, so back returns to the list and a refresh keeps the form', async () => {
+    const p = ports()
+    const id = await p.foods.add({
+      name: 'Apple',
+      perServing: { kcal: nutrition.kcal(95), proteinG: nutrition.grams(0), carbsG: nutrition.grams(25), fatG: nutrition.grams(0) },
+      estimated: false,
+    })
+    const first = render(<App {...p} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Foods' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Add food' }))
+    expect(location.hash).toBe('#/foods/new')
+    history.back()
+    expect(await screen.findByRole('button', { name: 'Add food' })).toBeInTheDocument()
+    expect(location.hash).toBe('#/foods')
+    first.unmount()
+    location.hash = `#/foods/${id}`
+    render(<App {...p} />)
+    expect(await screen.findByDisplayValue('Apple')).toBeInTheDocument()
+  })
+
+  it('returns to the Day by going back when it is the entry just before, not by stacking another', async () => {
+    render(<App {...ports()} />)
+    const push = vi.spyOn(history, 'pushState')
+    fireEvent.click(screen.getByRole('button', { name: 'Log' }))
+    expect(push).toHaveBeenCalledTimes(1)
+    fireEvent.click(await screen.findByRole('button', { name: 'Back' }))
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument())
+    expect(push).toHaveBeenCalledTimes(1)
+    push.mockRestore()
   })
 })
