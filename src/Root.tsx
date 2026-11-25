@@ -5,7 +5,7 @@ import { resolveConfig, type ConfigResolution } from './gate/config.ts'
 import { emulatorConfig, emulatorKit } from './gate/emulator.ts'
 import { PlatformGuard } from './gate/PlatformGuard.tsx'
 import { SetupScreen } from './gate/SetupScreen.tsx'
-import { App } from './App.tsx'
+import { FirestoreApp } from './FirestoreApp.tsx'
 import { APP_NAME } from './app-name.ts'
 import { AlertBanner } from 'household-ui/ui/AlertBanner.tsx'
 import { Button } from 'household-ui/ui/Button.tsx'
@@ -81,7 +81,7 @@ function Connected({ config, kit }: { config: FirebaseWebConfig; kit: LocalKit |
   return (
     <AuthGate client={client}>
       <PlatformGuard db={client.db} />
-      <App />
+      <FirestoreApp db={client.db} />
     </AuthGate>
   )
 }

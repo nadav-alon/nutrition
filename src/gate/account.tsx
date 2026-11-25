@@ -9,6 +9,7 @@ import { Button } from 'household-ui/ui/Button.tsx'
 
 /** The signed-in Member, and how they sign out; provided by the AuthGate to everything it lets in. */
 export interface SignedInMember {
+  uid: core.Uid
   email: core.Email
   signOut: () => void
 }

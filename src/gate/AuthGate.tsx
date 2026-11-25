@@ -124,7 +124,7 @@ export function AuthGate({ client, children }: AuthGateProps) {
 
     case 'member':
       return (
-        <MemberContext.Provider value={{ email: state.user.email, signOut }}>
+        <MemberContext.Provider value={{ uid: state.user.uid, email: state.user.email, signOut }}>
           {children}
         </MemberContext.Provider>
       )
