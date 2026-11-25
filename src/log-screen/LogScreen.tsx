@@ -6,6 +6,7 @@ import type { Day } from '../day.ts'
 import type { Foods, SavedFood } from '../foods/foods.ts'
 import type { LogStore } from '../log/log-store.ts'
 import { recents, type Recent } from '../log/recents.ts'
+import { ConfirmStep, type Picked } from './ConfirmStep.tsx'
 
 /** How many of the newest Log Entries Recents are drawn from; enough that duplicates still leave `MAX_RECENTS` distinct ones. */
 const RECENT_ENTRY_WINDOW = 100
@@ -29,7 +30,8 @@ function matches(food: SavedFood, query: string): boolean {
 }
 
 /** Logging one thing on a Day: a Recent, a saved Food, or a Quick Entry. */
-export function LogScreen({ log, foods, onDone }: LogScreenProps) {
+export function LogScreen({ log, foods, day, now, onDone }: LogScreenProps) {
+  const [picked, setPicked] = useState<Picked | null>(null)
   const [savedFoods, setSavedFoods] = useState<readonly SavedFood[]>([])
   const [recentEntries, setRecentEntries] = useState<Awaited<ReturnType<LogStore['recent']>>>([])
   useEffect(() => foods.watch(setSavedFoods), [foods])
@@ -45,7 +47,28 @@ export function LogScreen({ log, foods, onDone }: LogScreenProps) {
 
   const [query, setQuery] = useState('')
   const found = savedFoods.filter((food) => matches(food, query))
-  const offered: readonly Recent[] = recents(recentEntries, new Map(savedFoods.map((food) => [food.id, food])))
+  const foodsById = new Map(savedFoods.map((food) => [food.id, food]))
+  const offered: readonly Recent[] = recents(recentEntries, foodsById)
+
+  const pickFood = (food: SavedFood) =>
+    setPicked({
+      name: food.name,
+      source: { kind: 'food', foodId: food.id },
+      perServing: food.perServing,
+      servingLabel: food.servingLabel,
+    })
+  const pickRecent = (recent: Recent) => {
+    if (recent.kind === 'quick') {
+      setPicked({ name: recent.name, source: { kind: 'quick' }, perServing: recent.perServing })
+      return
+    }
+    const food = foodsById.get(recent.foodId)
+    if (food) pickFood(food)
+  }
+
+  if (picked !== null) {
+    return <ConfirmStep log={log} picked={picked} day={day} now={now} onSaved={onDone} onBack={() => setPicked(null)} />
+  }
   return (
     <main class="screen log-screen">
       <Button variant="text" onClick={onDone}>
@@ -66,7 +89,7 @@ export function LogScreen({ log, foods, onDone }: LogScreenProps) {
           ) : (
             <ul class="entry-list">
               {found.map((food) => (
-                <ListRow key={food.id} headline={food.name} supporting={food.place} onActivate={() => {}} />
+                <ListRow key={food.id} headline={food.name} supporting={food.place} onActivate={() => pickFood(food)} />
               ))}
             </ul>
           )}
@@ -76,7 +99,7 @@ export function LogScreen({ log, foods, onDone }: LogScreenProps) {
         <h3 id="recents-heading">Recents</h3>
         <ul class="entry-list">
           {offered.map((recent) => (
-            <ListRow key={recent.kind === 'food' ? recent.foodId : `quick:${recent.name}`} headline={recent.name} onActivate={() => {}} />
+            <ListRow key={recent.kind === 'food' ? recent.foodId : `quick:${recent.name}`} headline={recent.name} onActivate={() => pickRecent(recent)} />
           ))}
         </ul>
       </section>
