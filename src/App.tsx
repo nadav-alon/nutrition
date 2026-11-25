@@ -55,6 +55,7 @@ export function App({ log, foods, targets }: AppPorts) {
       )}
       {route.name === 'log' && (
         <LogScreen
+          key={JSON.stringify(route.estimate ?? null)}
           log={log}
           foods={foods}
           day={route.day}
