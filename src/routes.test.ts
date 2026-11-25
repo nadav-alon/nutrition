@@ -1,0 +1,26 @@
+import { describe, expect, it } from 'vitest'
+import { nutrition } from 'data-platform'
+import { day } from './day.ts'
+import { hashFor, parseRoute, type Route } from './routes.ts'
+
+const today = day('2026-03-10')
+const routes: Route[] = [
+  { name: 'day', day: day('2026-03-09') },
+  { name: 'log', day: day('2026-03-09') },
+  { name: 'entry', day: day('2026-03-09'), id: nutrition.logEntryId('a/b c') },
+  { name: 'foods' },
+  { name: 'targets' },
+]
+
+describe('routes', () => {
+  it.each(routes)('round-trips $name through its hash', (route) => {
+    expect(parseRoute(hashFor(route), today)).toEqual(route)
+  })
+
+  it.each(['', '#', '#/', '#/nope', '#/day/not-a-day', '#/day/2026-13-40', '#/foods/x', '#/day/2026-03-09/entry', '#/day/2026-03-09/entry/%E0%A4%A'])(
+    'reads %j as today\'s Day',
+    (hash) => {
+      expect(parseRoute(hash, today)).toEqual({ name: 'day', day: today })
+    },
+  )
+})
