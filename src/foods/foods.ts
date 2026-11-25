@@ -31,9 +31,10 @@ export interface SavedFood extends FoodFields {
 export interface Foods {
   /**
    * Calls `listener` with every live Food, ordered by name, and again after each change. The first
-   * call is the current list, so an empty list means the Household has no Foods. Returns how to stop.
+   * call is the current list, so an empty list means the Household has no Foods. A listening failure is
+   * passed to `onError`, after which no more lists arrive. Returns how to stop.
    */
-  watch(listener: (foods: readonly SavedFood[]) => void): () => void
+  watch(listener: (foods: readonly SavedFood[]) => void, onError?: (error: Error) => void): () => void
   /** Saves a new Food and returns its id. */
   add(fields: FoodFields): Promise<nutrition.FoodId>
   /** Applies `changes` to a Food. Rejects when there is no such live Food. */

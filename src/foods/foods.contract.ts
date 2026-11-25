@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { nutrition } from 'data-platform'
 import type { FoodFields, Foods, SavedFood } from './foods.ts'
 
@@ -57,18 +57,22 @@ export function foodsContract(name: string, open: () => Promise<Foods>) {
       expect(list.map((f) => f.name)).toEqual(['Apple', 'Canteen schnitzel'])
     })
 
-    it('tells a watcher about each change as it happens', async () => {
+    it('tells an open watcher about each add, edit and soft delete as it happens', async () => {
       const foods = await open()
-      const seen: number[] = []
-      const stop = foods.watch((list) => seen.push(list.length))
-      await listed(foods)
-      await foods.add(apple)
-      await listed(foods, (l) => l.length === 1)
+      const seen: string[][] = []
+      const stop = foods.watch((list) => seen.push(list.map((f) => f.name)))
+      const settled = (names: string[]) =>
+        vi.waitFor(() => expect(seen.at(-1)).toEqual(names))
+      await settled([])
+      const id = await foods.add(apple)
+      await settled(['Apple'])
       await foods.add(schnitzel)
-      await listed(foods, (l) => l.length === 2)
+      await settled(['Apple', 'Canteen schnitzel'])
+      await foods.edit(id, { name: 'Zucchini' })
+      await settled(['Canteen schnitzel', 'Zucchini'])
+      await foods.softDelete(id)
+      await settled(['Canteen schnitzel'])
       stop()
-      expect(seen[0]).toBe(0)
-      expect(seen.at(-1)).toBe(2)
     })
 
     it('edits every field of a Food', async () => {
@@ -108,6 +112,23 @@ export function foodsContract(name: string, open: () => Promise<Foods>) {
       await foods.softDelete(gone)
       const list = await listed(foods, (l) => l.length === 1)
       expect(list.map((f) => f.name)).toEqual(['Apple'])
+    })
+
+    it('rejects an edit of a Food that was soft-deleted, leaving it unlisted', async () => {
+      const foods = await open()
+      const id = await foods.add(schnitzel)
+      await foods.add(apple)
+      await foods.softDelete(id)
+      await expect(foods.edit(id, { name: 'Ghost' })).rejects.toThrow()
+      const list = await listed(foods, (l) => l.length === 1)
+      expect(list.map((f) => f.name)).toEqual(['Apple'])
+    })
+
+    it('rejects a soft delete of a Food that was already soft-deleted', async () => {
+      const foods = await open()
+      const id = await foods.add(schnitzel)
+      await foods.softDelete(id)
+      await expect(foods.softDelete(id)).rejects.toThrow()
     })
 
     it('rejects a soft delete of a Food that does not exist', async () => {
