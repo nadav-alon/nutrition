@@ -139,6 +139,46 @@ describe('the account link check', () => {
     expect(fetchStub.mock.calls[0]?.[1]?.headers).toMatchObject({ authorization: 'Bearer tok' })
   })
 
+  it('sends one identity request for writes started together', async () => {
+    const { health, fetchStub } = setup()
+    fetchStub.mockImplementation(identityThenPoint(() => json({})))
+    await health.connect()
+    await Promise.all([health.create(entry), health.create(entry)])
+    expect(fetchStub.mock.calls.filter(([url]) => String(url).endsWith('/identity'))).toHaveLength(1)
+  })
+
+  it('rejects remove as not linked, deleting nothing', async () => {
+    const { health, fetchStub } = setup()
+    fetchStub.mockImplementation(identityThenPoint(() => json({ error: { details: [{ reason: 'ACCOUNT_NOT_LINKED' }] } }, 400)))
+    await health.connect()
+    await expect(health.remove([dataPointName(POINT)])).rejects.toBeInstanceOf(NotLinkedError)
+    expect(fetchStub).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects as not linked when the write itself says so', async () => {
+    const { health, fetchStub } = setup()
+    fetchStub.mockImplementation(async (url) =>
+      String(url).endsWith('/identity') ? json({}) : json({ error: { details: [{ reason: 'ACCOUNT_NOT_LINKED' }] } }, 400),
+    )
+    await health.connect()
+    await expect(health.create(entry)).rejects.toBeInstanceOf(NotLinkedError)
+  })
+
+  it('does not take ACCOUNT_NOT_LINKED in free text for the structured reason', async () => {
+    const { health, fetchStub } = setup()
+    fetchStub.mockImplementation(identityThenPoint(() => new Response('ACCOUNT_NOT_LINKED', { status: 500 })))
+    await health.connect()
+    await expect(health.create(entry)).rejects.toBeInstanceOf(HealthRequestError)
+  })
+
+  it('types a 401 from identity as not connected and drops the token', async () => {
+    const { health, fetchStub } = setup()
+    fetchStub.mockImplementation(identityThenPoint(() => new Response('Unauthorized', { status: 401 })))
+    await health.connect()
+    await expect(health.create(entry)).rejects.toBeInstanceOf(NotConnectedError)
+    expect(health.isConnected()).toBe(false)
+  })
+
   it('checks again with a new token', async () => {
     let issued = 0
     const { health, fetchStub } = setup(({ callback }) => callback({ access_token: `tok-${issued++}`, expires_in: '3599' }))

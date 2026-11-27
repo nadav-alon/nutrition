@@ -62,25 +62,40 @@ function reportsAccountNotLinked(text: string): boolean {
 /** The `GoogleHealth` adapter over the Google Health REST API and the GIS token client. */
 export function googleHealth(deps: GoogleHealthDeps): GoogleHealth {
   let token: Token | undefined
-  /** The token value whose account link has been confirmed, so the check runs once per token. */
-  let linkedFor: string | undefined
+  /** The account-link check for one token value, kept in flight or settled so it runs once per token. */
+  let linkCheck: { readonly token: string; readonly done: Promise<void> } | undefined
 
-  const live = () => (token && deps.now().getTime() < token.expiresAt ? token : undefined)
+  const liveToken = () => (token && deps.now().getTime() < token.expiresAt ? token : undefined)
 
   /** Sends an authorised JSON request and returns the response text; failures are typed. */
   async function send(url: string, method: 'GET' | 'POST', body?: unknown): Promise<string> {
-    const current = live()
+    const current = liveToken()
     if (!current) throw new NotConnectedError()
-    if (url !== IDENTITY && linkedFor !== current.value) {
-      await send(IDENTITY, 'GET')
-      linkedFor = current.value
+    return request(current.value, url, method, body)
+  }
+
+  /** Confirms once per token that the account is linked to Google Health; a failed check is retried next time. */
+  async function ensureLinked(): Promise<void> {
+    const current = liveToken()
+    if (!current) throw new NotConnectedError()
+    if (linkCheck?.token !== current.value) {
+      const done = request(current.value, IDENTITY, 'GET').then(() => undefined)
+      const check = { token: current.value, done }
+      linkCheck = check
+      done.catch(() => {
+        if (linkCheck === check) linkCheck = undefined
+      })
     }
+    await linkCheck!.done
+  }
+
+  async function request(bearer: string, url: string, method: 'GET' | 'POST', body?: unknown): Promise<string> {
     let response: Response
     try {
       response = await deps.fetch(url, {
         method,
         headers: {
-          authorization: `Bearer ${current.value}`,
+          authorization: `Bearer ${bearer}`,
           ...(body === undefined ? {} : { 'content-type': 'application/json' }),
         },
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -132,8 +147,9 @@ export function googleHealth(deps: GoogleHealthDeps): GoogleHealth {
         client.requestAccessToken()
       })
     },
-    isConnected: () => live() !== undefined,
+    isConnected: () => liveToken() !== undefined,
     async create(entry) {
+      await ensureLinked()
       const body = parseBody(await send(DATA_POINTS, 'POST', toDataPoint(entry)))
       const name = (body as { name?: unknown } | undefined)?.name
       if (typeof name !== 'string') throw new HealthRequestError(undefined, 'Google Health returned no data point name')
@@ -143,6 +159,7 @@ export function googleHealth(deps: GoogleHealthDeps): GoogleHealth {
     async remove(names) {
       if (names.length === 0) return
       // Plain DELETE on a data point returns 404; the API deletes through a batch call. Its reply body is ignored.
+      await ensureLinked()
       await send(`${DATA_POINTS}:batchDelete`, 'POST', { names })
     },
   }
