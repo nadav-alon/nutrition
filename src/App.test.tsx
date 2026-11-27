@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/preact'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/preact'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nutrition } from 'data-platform'
 import { App, type AppPorts } from './App.tsx'
@@ -48,6 +48,22 @@ describe('App routes', () => {
     render(<App {...ports()} />)
     fireEvent.click(screen.getByRole('button', { name: 'Next day' }))
     expect(location.hash).toBe('#/')
+  })
+
+  it('moves to the new Today when left open past local midnight on Today', () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+    try {
+      vi.setSystemTime(new Date(2026, 10, 26, 23, 59, 0))
+      render(<App {...ports()} />)
+      expect(screen.getByRole('button', { name: 'Next day' })).toBeDisabled()
+      act(() => {
+        vi.advanceTimersByTime(2 * 60 * 1000)
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
+      expect(location.hash).toBe('#/day/2026-11-26')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('goes to Foods and Targets, and the browser back returns to the Day', async () => {

@@ -13,6 +13,7 @@ import { useDayEntries } from './log/use-day-entries.ts'
 import type { Route } from './routes.ts'
 import { TargetsScreen } from './targets/TargetsScreen.tsx'
 import type { TargetsPort } from './targets/targets-port.ts'
+import { useNow } from './use-now.ts'
 import { useRoute } from './use-route.ts'
 
 /** The ports of the signed-in Member's data that the screens work against. */
@@ -24,7 +25,7 @@ export interface AppPorts {
 
 /** The signed-in app: the Member's Day as home, with the screens reached from it. */
 export function App({ log, foods, targets }: AppPorts) {
-  const now = new Date()
+  const now = useNow()
   const today = dayOf(now)
   const [route, go, back] = useRoute(today)
   const home: Route = { name: 'day', day: today }
