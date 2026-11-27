@@ -1,12 +1,19 @@
 import { nutrition } from 'data-platform'
 import { applyEdit } from './apply-edit.ts'
 import { servings } from './servings.ts'
-import type { LogEntry, LogStore, NewLogEntry, Unsubscribe } from './log-store.ts'
+import type { LogEntry, LogStore, NewLogEntry, PushWork, Unsubscribe } from './log-store.ts'
 
 interface Watcher {
   readonly start: Date
   readonly end: Date
   readonly onEntries: (entries: readonly LogEntry[]) => void
+}
+
+/** Which push work `entry` has outstanding, if any. */
+function pushWork(entry: LogEntry, isDeleted: boolean): PushWork | undefined {
+  if (isDeleted) return entry.googleHealthId === undefined ? undefined : 'remove'
+  if (entry.googleHealthId === undefined) return 'create'
+  return entry.googleHealthStale ? 'replace' : undefined
 }
 
 /** An in-memory `LogStore`; the Firestore adapter must pass the same contract. */
@@ -64,12 +71,18 @@ export function fakeLogStore(): LogStore {
       entries.set(id, { ...matching, googleHealthId })
       notify()
     },
+    async recordRemoved(id) {
+      const entry = entries.get(id)
+      if (!entry) throw new Error(`No Log Entry ${id}`)
+      const { googleHealthId: _id, googleHealthStale: _stale, ...unsynced } = entry
+      entries.set(id, unsynced)
+      notify()
+    },
     async unsynced() {
       return [...entries.values()]
-        .filter((entry) => !deleted.has(entry.id))
         .sort((a, b) => a.eatenAt.getTime() - b.eatenAt.getTime())
         .flatMap((entry) => {
-          const work = entry.googleHealthId === undefined ? 'create' : entry.googleHealthStale ? 'replace' : undefined
+          const work = pushWork(entry, deleted.has(entry.id))
           return work ? [{ work, entry }] : []
         })
     },

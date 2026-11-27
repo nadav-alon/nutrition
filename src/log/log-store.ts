@@ -74,4 +74,9 @@ export interface LogStore {
    * the id and clears `googleHealthStale`. Works on a soft-deleted entry; rejects for one that does not exist.
    */
   recordPushed(id: nutrition.LogEntryId, googleHealthId: nutrition.GoogleHealthId): Promise<void>
+  /**
+   * Records that the entry's data point is gone from Google Health: clears `googleHealthId` and
+   * `googleHealthStale`. Works on a soft-deleted entry; rejects for one that does not exist.
+   */
+  recordRemoved(id: nutrition.LogEntryId): Promise<void>
 }

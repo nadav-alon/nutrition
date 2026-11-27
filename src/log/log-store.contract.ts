@@ -260,6 +260,59 @@ export function logStoreContract(name: string, makeStore: () => Promise<LogStore
       })
     })
 
+    describe('removing a pushed entry', () => {
+      const pushed = nutrition.googleHealthId('users/me/dataTypes/nutrition/dataPoints/1')
+
+      it('queues a deleted pushed entry as remove, even when it was stale, and hides it from reads', async () => {
+        const id = await store.create(schnitzel)
+        await store.create(quickToast)
+        await store.recordPushed(id, pushed)
+        await store.update(id, { mealType: 'dinner' })
+        await store.softDelete(id)
+        const queued = (await store.unsynced()).filter(({ work }) => work === 'remove')
+        expect(queued.map(({ entry }) => entry.id)).toEqual([id])
+        expect(queued[0]?.entry.googleHealthId).toBe(pushed)
+        const day = watchDay(store)
+        await day.names(['Toast'])
+        day.unsubscribe()
+        expect((await store.recent(10)).map((entry) => entry.name)).toEqual(['Toast'])
+      })
+
+      it('orders removals among the other work by when the entry was eaten', async () => {
+        const gone = await store.create({ ...quickToast, name: 'Gone', eatenAt: new Date('2026-03-10T08:00:00Z') })
+        await store.create({ ...quickToast, name: 'Later', eatenAt: new Date('2026-03-12T08:00:00Z') })
+        await store.create({ ...quickToast, name: 'Earlier', eatenAt: new Date('2026-03-09T08:00:00Z') })
+        await store.recordPushed(gone, pushed)
+        await store.softDelete(gone)
+        expect((await store.unsynced()).map(({ work, entry }) => [work, entry.name])).toEqual([
+          ['create', 'Earlier'],
+          ['remove', 'Gone'],
+          ['create', 'Later'],
+        ])
+      })
+
+      it('takes the entry off the queue once recordRemoved, on a deleted entry', async () => {
+        const id = await store.create(schnitzel)
+        await store.recordPushed(id, pushed)
+        await store.softDelete(id)
+        await store.recordRemoved(id)
+        expect(await store.unsynced()).toEqual([])
+      })
+
+      it('clears the id and the stale flag on a live entry, which is then queued as create', async () => {
+        const id = await store.create(schnitzel)
+        await store.recordPushed(id, pushed)
+        await store.update(id, { mealType: 'dinner' })
+        await store.recordRemoved(id)
+        const queued = await store.unsynced()
+        expect(queued).toEqual([{ work: 'create', entry: { ...schnitzel, id, mealType: 'dinner' } }])
+      })
+
+      it('rejects an entry that does not exist', async () => {
+        await expect(store.recordRemoved(nutrition.logEntryId('missing'))).rejects.toThrow()
+      })
+    })
+
     describe('soft deleting', () => {
       it('removes the entry from its Day, and leaves the others', async () => {
         const id = await store.create(schnitzel)
