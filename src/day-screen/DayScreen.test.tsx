@@ -131,6 +131,36 @@ describe('DayScreen without Targets', () => {
     await act(() => targets.write({ kcal: kcal(2000) }))
     expect(screen.queryByText(/No Targets set/)).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Set Targets' })).not.toBeInTheDocument()
+    expect(screen.getByRole('meter', { name: 'Calories' })).toHaveAttribute('aria-valuemax', '2000')
+  })
+
+  it('offers to set Targets when every Target is unset', async () => {
+    const targets = fakeTargetsPort()
+    await targets.write({})
+    renderScreen({ targets })
+    expect(screen.getByText(/No Targets set/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Set Targets' })).toBeInTheDocument()
+  })
+
+  it('does not offer to set Targets while they are loading', () => {
+    const targets: TargetsPort = { subscribe: () => () => {}, write: async () => {} }
+    renderScreen({ targets })
+    expect(screen.queryByText(/No Targets set/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Set Targets' })).not.toBeInTheDocument()
+  })
+
+  it('does not offer to set Targets when they cannot be read', () => {
+    const targets: TargetsPort = {
+      subscribe: (_onChange, onError) => {
+        onError(new Error('offline'))
+        return () => {}
+      },
+      write: async () => {},
+    }
+    renderScreen({ targets })
+    expect(screen.getByText('Targets unavailable.')).toBeInTheDocument()
+    expect(screen.queryByText(/No Targets set/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Set Targets' })).not.toBeInTheDocument()
   })
 })
 
