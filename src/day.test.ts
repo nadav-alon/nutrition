@@ -134,5 +134,4 @@ describe('Day label', () => {
   it('adds the year when it is not the current one', () => {
     expect(dayLabel(day('2025-12-31'), now)).toBe('Wed 31 Dec 2025')
   })
-
 })
