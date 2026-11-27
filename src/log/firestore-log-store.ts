@@ -24,7 +24,8 @@ import type { core } from 'data-platform'
 import { nutrition } from 'data-platform'
 import { applyEdit } from './apply-edit.ts'
 import { servings } from './servings.ts'
-import type { LogEntry, LogStore, NewLogEntry, PushWork } from './log-store.ts'
+import { unsyncedEntry } from './unsynced-entry.ts'
+import type { LogEntry, LogStore, NewLogEntry } from './log-store.ts'
 
 /** The Firestore adapter for `LogStore`: `nutritionLogs/{uid}/entries`, one document per Log Entry. */
 export function firestoreLogStore(db: Firestore, uid: core.Uid): LogStore {
@@ -82,7 +83,7 @@ export function firestoreLogStore(db: Firestore, uid: core.Uid): LogStore {
           mealType: edited.mealType,
           eatenAt: Timestamp.fromDate(edited.eatenAt),
           nutrition: edited.nutrition,
-          ...(current.googleHealthId !== undefined && { googleHealthStale: true }),
+          ...(edited.googleHealthStale && { googleHealthStale: true }),
         })
       })
     },
@@ -110,11 +111,7 @@ export function firestoreLogStore(db: Firestore, uid: core.Uid): LogStore {
     async unsynced() {
       // Firestore cannot query for an absent field, so every entry is read and the outstanding ones kept.
       const { docs } = await getDocs(query(entries, orderBy('eatenAt')))
-      return docs.flatMap((snapshot) => {
-        const entry = toLogEntry(snapshot)
-        const work = pushWork(entry, !isLive(snapshot))
-        return work ? [{ work, entry }] : []
-      })
+      return docs.flatMap((snapshot) => unsyncedEntry(toLogEntry(snapshot), !isLive(snapshot)) ?? [])
     },
   }
 }
@@ -153,13 +150,6 @@ function toLogEntry(snapshot: DocumentSnapshot): LogEntry {
     ...(data.googleHealthId === undefined ? {} : { googleHealthId: data.googleHealthId }),
     ...(data.googleHealthStale === true ? { googleHealthStale: true as const } : {}),
   }
-}
-
-/** Which push work `entry` has outstanding, if any. */
-function pushWork(entry: LogEntry, isDeleted: boolean): PushWork | undefined {
-  if (isDeleted) return entry.googleHealthId === undefined ? undefined : 'remove'
-  if (entry.googleHealthId === undefined) return 'create'
-  return entry.googleHealthStale ? 'replace' : undefined
 }
 
 /** Whether a stored entry is live: it has no `deletedAt`. */

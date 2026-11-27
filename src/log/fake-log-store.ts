@@ -1,19 +1,13 @@
 import { nutrition } from 'data-platform'
 import { applyEdit } from './apply-edit.ts'
 import { servings } from './servings.ts'
-import type { LogEntry, LogStore, NewLogEntry, PushWork, Unsubscribe } from './log-store.ts'
+import { unsyncedEntry } from './unsynced-entry.ts'
+import type { LogEntry, LogStore, NewLogEntry, Unsubscribe } from './log-store.ts'
 
 interface Watcher {
   readonly start: Date
   readonly end: Date
   readonly onEntries: (entries: readonly LogEntry[]) => void
-}
-
-/** Which push work `entry` has outstanding, if any. */
-function pushWork(entry: LogEntry, isDeleted: boolean): PushWork | undefined {
-  if (isDeleted) return entry.googleHealthId === undefined ? undefined : 'remove'
-  if (entry.googleHealthId === undefined) return 'create'
-  return entry.googleHealthStale ? 'replace' : undefined
 }
 
 /** An in-memory `LogStore`; the Firestore adapter must pass the same contract. */
@@ -57,7 +51,7 @@ export function fakeLogStore(): LogStore {
       const entry = entries.get(id)
       if (!entry || deleted.has(id)) throw new Error(`No live Log Entry ${id}`)
       const edited = applyEdit(entry, edit)
-      entries.set(id, edited.googleHealthId === undefined ? edited : { ...edited, googleHealthStale: true })
+      entries.set(id, edited)
       notify()
     },
     async softDelete(id) {
@@ -74,17 +68,14 @@ export function fakeLogStore(): LogStore {
     async recordRemoved(id) {
       const entry = entries.get(id)
       if (!entry) throw new Error(`No Log Entry ${id}`)
-      const { googleHealthId: _id, googleHealthStale: _stale, ...unsynced } = entry
-      entries.set(id, unsynced)
+      const { googleHealthId: _id, googleHealthStale: _stale, ...neverPushed } = entry
+      entries.set(id, neverPushed)
       notify()
     },
     async unsynced() {
       return [...entries.values()]
         .sort((a, b) => a.eatenAt.getTime() - b.eatenAt.getTime())
-        .flatMap((entry) => {
-          const work = pushWork(entry, deleted.has(entry.id))
-          return work ? [{ work, entry }] : []
-        })
+        .flatMap((entry) => unsyncedEntry(entry, deleted.has(entry.id)) ?? [])
     },
   }
 }
