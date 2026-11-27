@@ -7,7 +7,6 @@ import ChevronLeft from '~icons/material-symbols/chevron-left'
 import ChevronRight from '~icons/material-symbols/chevron-right'
 import { dayOf, nextDay, previousDay, type Day } from '../day.ts'
 import type { LogEntry, LogStore } from '../log/log-store.ts'
-import { hashFor } from '../routes.ts'
 import { useDayEntries } from '../log/use-day-entries.ts'
 import type { Targets, TargetsPort } from '../targets/targets-port.ts'
 
@@ -24,6 +23,8 @@ export interface DayScreenProps {
   onOpenEntry: (entry: LogEntry) => void
   /** Called with the viewed Day when the Member asks to log on it. */
   onLog: (day: Day) => void
+  /** Called when the Member asks to set their Targets. */
+  onSetTargets: () => void
 }
 
 const MEAL_TYPE_LABELS: Record<nutrition.MealType, string> = {
@@ -82,7 +83,7 @@ function MacroBar({ macro: { label, unit }, eaten: rawEaten, target }: MacroBarP
 }
 
 /** One Day's Log Entries against the Member's Targets; stepping to earlier Days. */
-export function DayScreen({ log, targets, now, day: viewed, onDayChange, onOpenEntry, onLog }: DayScreenProps) {
+export function DayScreen({ log, targets, now, day: viewed, onDayChange, onOpenEntry, onLog, onSetTargets }: DayScreenProps) {
   const today = dayOf(now)
   const dayEntries = useDayEntries(log, viewed)
   const [memberTargets, setMemberTargets] = useState<Targets | null | undefined>(undefined)
@@ -112,7 +113,15 @@ export function DayScreen({ log, targets, now, day: viewed, onDayChange, onOpenE
       {targetsFailed ? <p>Targets unavailable.</p> : null}
       {noTargets ? (
         <p>
-          No Targets set. <a href={hashFor({ name: 'targets' }, today)}>Set Targets</a>
+          No Targets set. <a
+            href="#/targets"
+            onClick={(event) => {
+              event.preventDefault()
+              onSetTargets()
+            }}
+          >
+            Set Targets
+          </a>
         </p>
       ) : null}
       {dayEntries.status === 'error' ? (
