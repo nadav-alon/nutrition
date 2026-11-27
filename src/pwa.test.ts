@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { manifest } from './pwa-manifest.ts'
 import { SEED } from './seed.ts'
+import { iconFile, iconSrc } from './icon-src.ts'
 
 describe('PWA manifest', () => {
   it('is installable: standalone with a 192 and a 512 icon that exist', () => {
@@ -13,7 +14,7 @@ describe('PWA manifest', () => {
     expect(sizes).toContain('192x192')
     expect(sizes).toContain('512x512')
     for (const icon of manifest.icons!) {
-      expect(existsSync(join('public', icon.src))).toBe(true)
+      expect(existsSync(join('public', iconFile(icon.src)))).toBe(true)
     }
   })
 })
@@ -34,7 +35,7 @@ describe('production build', () => {
 describe('favicon', () => {
   it('is the 192 manifest icon, which draws the apple', () => {
     const href = readFileSync('index.html', 'utf8').match(/<link rel="icon"[^>]*href="\/([^"]+)"/)?.[1]
-    expect(href).toBe(manifest.icons!.find((i) => i.sizes === '192x192' && !i.purpose)!.src)
+    expect(href).toBe(iconFile(manifest.icons!.find((i) => i.sizes === '192x192' && !i.purpose)!.src))
   })
 })
 
@@ -49,5 +50,14 @@ describe('deploy workflow', () => {
   it('uploads the build output the Vite config serves under /nutrition/', () => {
     expect(workflow).toContain('npm run build')
     expect(workflow).toMatch(/path: dist\b/)
+  })
+})
+
+describe('manifest icon URLs', () => {
+  it('carry a version taken from the icon file content', () => {
+    for (const icon of manifest.icons!) {
+      expect(icon.src).toBe(iconSrc(iconFile(icon.src), 'public'))
+      expect(icon.src).toMatch(/\.png\?v=[0-9a-f]{8}$/)
+    }
   })
 })
