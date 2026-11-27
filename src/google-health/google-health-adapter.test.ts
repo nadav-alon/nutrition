@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { nutrition } from 'data-platform'
 import { googleHealth } from './google-health-adapter.ts'
 import type { GoogleHealthDeps } from './google-health-adapter.ts'
 import { NotConnectedError } from './google-health.ts'
@@ -68,5 +69,53 @@ describe('connect and isConnected', () => {
   it('rejects as not connected when the popup is closed', async () => {
     const { health } = setup(({ error_callback }) => error_callback({ message: 'Popup window closed' }))
     await expect(health.connect()).rejects.toMatchObject({ name: 'NotConnectedError', message: 'Popup window closed' })
+  })
+})
+
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status })
+
+const entry = {
+  name: 'Canteen schnitzel',
+  mealType: 'lunch',
+  nutrition: { kcal: nutrition.kcal(650), proteinG: nutrition.grams(30), carbsG: nutrition.grams(70), fatG: nutrition.grams(25) },
+  eatenAt: new Date('2026-11-27T12:30:00Z'),
+} as const
+
+const POINT = 'users/me/dataTypes/nutrition-log/dataPoints/abc'
+
+describe('create', () => {
+  it('posts the entry mapped onto a nutrition-log data point and returns its name', async () => {
+    const { health, fetchStub } = setup()
+    fetchStub.mockResolvedValue(json({ name: POINT }))
+    await health.connect()
+    expect(await health.create(entry)).toBe(POINT)
+    const [url, init] = fetchStub.mock.calls[0]!
+    expect(url).toBe('https://health.googleapis.com/v4/users/me/dataTypes/nutrition-log/dataPoints')
+    expect(init?.method).toBe('POST')
+    expect(init?.headers).toMatchObject({ authorization: 'Bearer tok' })
+    const offset = `${-new Date('2026-11-27T12:30:00Z').getTimezoneOffset() * 60}s`
+    expect(JSON.parse(init?.body as string)).toEqual({
+      foodDisplayName: 'Canteen schnitzel',
+      mealType: 'LUNCH',
+      energy: { kcal: 650 },
+      totalCarbohydrate: { grams: 70 },
+      totalFat: { grams: 25 },
+      nutrients: [{ nutrient: 'PROTEIN', quantity: { grams: 30 } }],
+      interval: {
+        startTime: '2026-11-27T12:30:00.000Z',
+        startUtcOffset: offset,
+        endTime: '2026-11-27T12:31:00.000Z',
+        endUtcOffset: offset,
+      },
+    })
+  })
+
+  it('rejects as not connected, sending nothing, with no token or an expired one', async () => {
+    const { health, fetchStub, advance } = setup()
+    await expect(health.create(entry)).rejects.toBeInstanceOf(NotConnectedError)
+    await health.connect()
+    advance(3_600_000)
+    await expect(health.create(entry)).rejects.toBeInstanceOf(NotConnectedError)
+    expect(fetchStub).not.toHaveBeenCalled()
   })
 })
