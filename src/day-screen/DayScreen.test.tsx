@@ -133,6 +133,8 @@ describe('DayScreen targets', () => {
     expect(within(bar('Protein')).getByText('20 g eaten · 30 g left')).toBeInTheDocument()
     expect(within(bar('Carbs')).getByText('40 g eaten · 60 g left')).toBeInTheDocument()
     expect(within(bar('Fat')).getByText('10 g eaten · 10 g left')).toBeInTheDocument()
+    expect(bar('Calories')).toHaveAttribute('aria-valuetext', '1000 kcal eaten · 1000 kcal left')
+    expect(bar('Protein')).toHaveAttribute('aria-valuetext', '20 g eaten · 30 g left')
   })
 
   it('shows only the total for a macro with no Target', async () => {
@@ -142,6 +144,7 @@ describe('DayScreen targets', () => {
     await targets.write({ kcal: kcal(2000) })
     renderScreen({ log, targets })
     expect(within(bar('Protein')).getByText('10 g eaten')).toBeInTheDocument()
+    expect(bar('Protein')).toHaveAttribute('aria-valuetext', '10 g eaten')
     expect(bar('Protein')).not.toHaveAttribute('aria-valuemax')
   })
 
@@ -159,6 +162,7 @@ describe('DayScreen targets', () => {
     await targets.write({ kcal: kcal(2000) })
     renderScreen({ log, targets })
     expect(within(bar('Calories')).getByText('2500 kcal eaten · 500 kcal over')).toBeInTheDocument()
+    expect(bar('Calories')).toHaveAttribute('aria-valuetext', '2500 kcal eaten · 500 kcal over')
     expect(bar('Calories')).toHaveClass('over')
     expect(bar('Protein')).not.toHaveClass('over')
   })
