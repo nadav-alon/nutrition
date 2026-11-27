@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { nutrition } from 'data-platform'
+import { dataPointName } from './google-health.ts'
 import { googleHealth } from './google-health-adapter.ts'
 import type { GoogleHealthDeps } from './google-health-adapter.ts'
-import { NotConnectedError, NotLinkedError } from './google-health.ts'
+import { HealthRequestError, NotConnectedError, NotLinkedError } from './google-health.ts'
 import type { TokenResponse } from './gis.ts'
 
 /** A GIS stub: `grant` is what the popup answers when `requestAccessToken` runs. */
@@ -159,5 +160,61 @@ describe('the account link check', () => {
     await expect(health.create(entry)).rejects.toBeInstanceOf(NotLinkedError)
     expect(fetchStub.mock.calls.every(([url]) => String(url).endsWith('/identity'))).toBe(true)
     expect(fetchStub).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('remove', () => {
+  it('posts the names to batchDelete', async () => {
+    const { health, fetchStub } = setup()
+    fetchStub.mockImplementation(async () => json({}))
+    await health.connect()
+    await health.remove([dataPointName(POINT)])
+    const [url, init] = fetchStub.mock.calls[1]!
+    expect(url).toBe('https://health.googleapis.com/v4/users/me/dataTypes/nutrition-log/dataPoints:batchDelete')
+    expect(init?.method).toBe('POST')
+    expect(JSON.parse(init?.body as string)).toEqual({ names: [POINT] })
+  })
+
+  it('sends nothing for no names', async () => {
+    const { health, fetchStub } = setup()
+    await health.connect()
+    await health.remove([])
+    expect(fetchStub).not.toHaveBeenCalled()
+  })
+
+  it('rejects as not connected without a live token', async () => {
+    const { health } = setup()
+    await expect(health.remove([dataPointName(POINT)])).rejects.toBeInstanceOf(NotConnectedError)
+  })
+})
+
+describe('other failures', () => {
+  const failing = (response: () => Promise<Response>) => async (url: Parameters<typeof fetch>[0]) =>
+    String(url).endsWith('/identity') ? json({}) : response()
+
+  it('keeps the status and message of an error response', async () => {
+    const { health, fetchStub } = setup()
+    fetchStub.mockImplementation(failing(async () => new Response('Quota exceeded', { status: 429 })))
+    await health.connect()
+    const error = await health.create(entry).catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(HealthRequestError)
+    expect(error).toMatchObject({ status: 429, message: 'Quota exceeded' })
+  })
+
+  it('keeps the message of a request that never got a response, with no status', async () => {
+    const { health, fetchStub } = setup()
+    fetchStub.mockImplementation(failing(async () => Promise.reject(new TypeError('Failed to fetch'))))
+    await health.connect()
+    const error = await health.remove([dataPointName(POINT)]).catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(HealthRequestError)
+    expect(error).toMatchObject({ status: undefined, message: 'Failed to fetch' })
+  })
+
+  it('types a 401 as not connected, since the token is no longer accepted', async () => {
+    const { health, fetchStub } = setup()
+    fetchStub.mockImplementation(failing(async () => new Response('Unauthorized', { status: 401 })))
+    await health.connect()
+    await expect(health.create(entry)).rejects.toBeInstanceOf(NotConnectedError)
+    expect(health.isConnected()).toBe(false)
   })
 })

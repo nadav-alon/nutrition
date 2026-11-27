@@ -79,6 +79,10 @@ export function googleHealth(deps: GoogleHealthDeps): GoogleHealth {
     if (!response.ok) {
       const text = await response.text()
       if (text.includes('ACCOUNT_NOT_LINKED')) throw new NotLinkedError()
+      if (response.status === 401) {
+        token = undefined
+        throw new NotConnectedError('Google Health rejected the token')
+      }
       throw new HealthRequestError(response.status, text)
     }
     return response.json()
@@ -112,6 +116,10 @@ export function googleHealth(deps: GoogleHealthDeps): GoogleHealth {
       if (typeof name !== 'string') throw new HealthRequestError(undefined, 'Google Health returned no data point name')
       return dataPointName(name)
     },
-    remove: () => Promise.reject(new Error('unimplemented')),
+    async remove(names) {
+      if (names.length === 0) return
+      // Plain DELETE on a data point returns 404; the API deletes through a batch call.
+      await send(`${DATA_POINTS}:batchDelete`, 'POST', { names })
+    },
   }
 }
