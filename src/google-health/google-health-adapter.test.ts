@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { nutrition } from 'data-platform'
 import { dataPointName } from './google-health.ts'
 import { googleHealth } from './google-health-adapter.ts'
@@ -85,7 +85,30 @@ const entry = {
 const POINT = 'users/me/dataTypes/nutrition-log/dataPoints/abc'
 
 describe('create', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  const offsets = async (eatenAt: Date) => {
+    const { health, fetchStub } = setup()
+    fetchStub.mockImplementation(async (url) => (String(url).endsWith('/identity') ? json({}) : json({ name: POINT })))
+    await health.connect()
+    await health.create({ ...entry, eatenAt })
+    const { interval } = JSON.parse(fetchStub.mock.calls[1]![1]?.body as string)
+    return [interval.startUtcOffset, interval.endUtcOffset]
+  }
+
+  it('signs the offset east positive and west negative', async () => {
+    vi.stubEnv('TZ', 'America/New_York')
+    expect(await offsets(new Date('2026-11-27T12:30:00Z'))).toEqual(['-18000s', '-18000s'])
+  })
+
+  it('takes each end\'s own offset across a DST change', async () => {
+    vi.stubEnv('TZ', 'Asia/Jerusalem')
+    // Daylight time ends 2026-10-25 at 23:00Z: +3 before, +2 after.
+    expect(await offsets(new Date('2026-10-24T22:59:30Z'))).toEqual(['10800s', '7200s'])
+  })
+
   it('posts the entry mapped onto a nutrition-log data point and returns its name', async () => {
+    vi.stubEnv('TZ', 'Asia/Jerusalem')
     const { health, fetchStub } = setup()
     fetchStub.mockImplementation(async (url) => (String(url).endsWith('/identity') ? json({}) : json({ name: POINT })))
     await health.connect()
@@ -94,7 +117,6 @@ describe('create', () => {
     expect(url).toBe('https://health.googleapis.com/v4/users/me/dataTypes/nutrition-log/dataPoints')
     expect(init?.method).toBe('POST')
     expect(init?.headers).toMatchObject({ authorization: 'Bearer tok' })
-    const offset = `${-new Date('2026-11-27T12:30:00Z').getTimezoneOffset() * 60}s`
     expect(JSON.parse(init?.body as string)).toEqual({
       foodDisplayName: 'Canteen schnitzel',
       mealType: 'LUNCH',
@@ -104,9 +126,9 @@ describe('create', () => {
       nutrients: [{ nutrient: 'PROTEIN', quantity: { grams: 30 } }],
       interval: {
         startTime: '2026-11-27T12:30:00.000Z',
-        startUtcOffset: offset,
+        startUtcOffset: '7200s',
         endTime: '2026-11-27T12:31:00.000Z',
-        endUtcOffset: offset,
+        endUtcOffset: '7200s',
       },
     })
   })
