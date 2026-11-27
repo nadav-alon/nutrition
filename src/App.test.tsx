@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/preact'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/preact'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nutrition } from 'data-platform'
 import { App, type AppPorts } from './App.tsx'
@@ -33,6 +33,53 @@ describe('App routes', () => {
     first.unmount()
     render(<App {...ports()} />)
     expect(screen.getByRole('heading', { name: previousDay(today) })).toBeInTheDocument()
+  })
+
+  it("leaves a route meaning today when the Member comes back to today's Day", () => {
+    location.hash = `#/day/${today}/log`
+    render(<App {...ports()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(location.hash).toBe('#/')
+    expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument()
+  })
+
+  it('rewrites a dated hash that names today to the route meaning today', () => {
+    location.hash = `#/day/${today}`
+    render(<App {...ports()} />)
+    expect(location.hash).toBe('#/')
+  })
+
+  it('leaves a route meaning today when Done returns through the real history from Log', async () => {
+    location.hash = `#/day/${today}`
+    render(<App {...ports()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Log' }))
+    expect(location.hash).toBe(`#/day/${today}/log`)
+    fireEvent.click(await screen.findByRole('button', { name: 'Back' }))
+    await waitFor(() => expect(location.hash).toBe('#/'))
+    expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument()
+  })
+
+  it("leaves a route meaning today when stepping forward reaches today's Day", () => {
+    location.hash = `#/day/${previousDay(today)}`
+    render(<App {...ports()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Next day' }))
+    expect(location.hash).toBe('#/')
+  })
+
+  it('moves to the new Today when left open past local midnight on Today', () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] })
+    try {
+      vi.setSystemTime(new Date(2026, 10, 26, 23, 59, 0))
+      render(<App {...ports()} />)
+      expect(screen.getByRole('button', { name: 'Next day' })).toBeDisabled()
+      act(() => {
+        vi.advanceTimersByTime(2 * 60 * 1000)
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
+      expect(location.hash).toBe('#/day/2026-11-26')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('goes to Foods and Targets, and the browser back returns to the Day', async () => {

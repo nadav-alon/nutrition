@@ -16,7 +16,12 @@ const routes: Route[] = [
 
 describe('routes', () => {
   it.each(routes)('round-trips $name through its hash', (route) => {
-    expect(parseRoute(hashFor(route), today)).toEqual(route)
+    expect(parseRoute(hashFor(route, today), today)).toEqual(route)
+  })
+
+  it("writes today's Day as the bare #/, and any other Day dated", () => {
+    expect(hashFor({ name: 'day', day: today }, today)).toBe('#/')
+    expect(hashFor({ name: 'day', day: day('2026-03-09') }, today)).toBe('#/day/2026-03-09')
   })
 
   it.each(['', '#', '#/', '#/nope', '#/day/not-a-day', '#/day/2026-13-40', '#/foods/x/y', '#/day/2026-03-09/entry', '#/day/2026-03-09/entry/%E0%A4%A'])(
