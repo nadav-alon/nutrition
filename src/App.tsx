@@ -2,7 +2,7 @@ import { TopAppBar } from 'household-ui/shell/TopAppBar.tsx'
 import { Button } from 'household-ui/ui/Button.tsx'
 import type { nutrition } from 'data-platform'
 import { AccountAction } from './gate/account.tsx'
-import { dayOf, type Day } from './day.ts'
+import type { Day } from './day.ts'
 import { DayScreen } from './day-screen/DayScreen.tsx'
 import { FoodsScreen } from './foods-screen/FoodsScreen.tsx'
 import type { Foods } from './foods/foods.ts'
@@ -25,8 +25,7 @@ export interface AppPorts {
 
 /** The signed-in app: the Member's Day as home, with the screens reached from it. */
 export function App({ log, foods, targets }: AppPorts) {
-  const now = useNow()
-  const today = dayOf(now)
+  const { now, today } = useNow()
   const [route, go, back] = useRoute(today)
   const home: Route = { name: 'day', day: today }
   const backToDay = (day: Day) => back({ name: 'day', day })
