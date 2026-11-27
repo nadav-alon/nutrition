@@ -18,6 +18,15 @@ export function useRoute(today: Day): [Route, (route: Route) => void, (route: Ro
       removeEventListener('popstate', onChange)
     }
   }, [])
+  // A dated hash that names today (a bookmark, or a tab left open) is rewritten in place to the
+  // bare `#/`, so reopening the app on a later day shows that day's Today, not this one.
+  useEffect(() => {
+    const route = parseRoute(hash, today)
+    if (route.name === 'day' && route.day === today && hash !== '' && hash !== hashFor(route, today)) {
+      history.replaceState(history.state, '', hashFor(route, today))
+      setHash(location.hash)
+    }
+  }, [hash, today])
   const go = (route: Route) => {
     // The entry remembers the hash it was reached from, which is what `back` looks at.
     history.pushState({ from: location.hash }, '', hashFor(route, today))

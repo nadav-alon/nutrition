@@ -43,6 +43,22 @@ describe('App routes', () => {
     expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument()
   })
 
+  it('rewrites a dated hash that names today to the route meaning today', () => {
+    location.hash = `#/day/${today}`
+    render(<App {...ports()} />)
+    expect(location.hash).toBe('#/')
+  })
+
+  it('leaves a route meaning today when Done returns through the real history from Log', async () => {
+    location.hash = `#/day/${today}`
+    render(<App {...ports()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Log' }))
+    expect(location.hash).toBe(`#/day/${today}/log`)
+    fireEvent.click(await screen.findByRole('button', { name: 'Back' }))
+    await waitFor(() => expect(location.hash).toBe('#/'))
+    expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument()
+  })
+
   it("leaves a route meaning today when stepping forward reaches today's Day", () => {
     location.hash = `#/day/${previousDay(today)}`
     render(<App {...ports()} />)
