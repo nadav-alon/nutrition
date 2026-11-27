@@ -20,13 +20,13 @@ export function useRoute(today: Day): [Route, (route: Route) => void, (route: Ro
   }, [])
   const go = (route: Route) => {
     // The entry remembers the hash it was reached from, which is what `back` looks at.
-    history.pushState({ from: location.hash }, '', hashFor(route))
+    history.pushState({ from: location.hash }, '', hashFor(route, today))
     setHash(location.hash)
   }
   const back = (route: Route) => {
     const from = (history.state as { from?: string } | null)?.from
     // An empty hash reads as today's Day, so compare routes, not hash text.
-    if (from !== undefined && hashFor(parseRoute(from, today)) === hashFor(route)) history.back()
+    if (from !== undefined && hashFor(parseRoute(from, today), today) === hashFor(route, today)) history.back()
     else go(route)
   }
   return [parseRoute(hash, today), go, back]

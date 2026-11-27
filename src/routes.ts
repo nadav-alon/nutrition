@@ -13,12 +13,13 @@ export type Route =
 /**
  * The location hash for `route`. Routes live in the hash because the app is served from static
  * hosting, where a deeper path would 404 on refresh. An estimate link is only ever read, never
- * written, so `hashFor` leaves it out.
+ * written, so `hashFor` leaves it out. Today's Day is written as the bare `#/`, which `parseRoute`
+ * reads as whichever Day is today when it is read, so a reopened app never pins a past Day.
  */
-export function hashFor(route: Route): string {
+export function hashFor(route: Route, today: Day): string {
   switch (route.name) {
     case 'day':
-      return `#/day/${route.day}`
+      return route.day === today ? '#/' : `#/day/${route.day}`
     case 'log':
       return `#/day/${route.day}/log`
     case 'entry':

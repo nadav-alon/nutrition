@@ -35,6 +35,21 @@ describe('App routes', () => {
     expect(screen.getByRole('heading', { name: previousDay(today) })).toBeInTheDocument()
   })
 
+  it("leaves a route meaning today when the Member comes back to today's Day", () => {
+    location.hash = `#/day/${today}/log`
+    render(<App {...ports()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(location.hash).toBe('#/')
+    expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument()
+  })
+
+  it("leaves a route meaning today when stepping forward reaches today's Day", () => {
+    location.hash = `#/day/${previousDay(today)}`
+    render(<App {...ports()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Next day' }))
+    expect(location.hash).toBe('#/')
+  })
+
   it('goes to Foods and Targets, and the browser back returns to the Day', async () => {
     render(<App {...ports()} />)
     fireEvent.click(screen.getByRole('button', { name: 'Foods' }))
