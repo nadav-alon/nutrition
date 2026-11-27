@@ -196,6 +196,27 @@ export function logStoreContract(name: string, makeStore: () => Promise<LogStore
       })
     })
 
+    describe('the Google Health queue', () => {
+      it('is empty before anything is logged', async () => {
+        expect(await store.unsynced()).toEqual([])
+      })
+
+      it('holds every entry never pushed, across Days, oldest first, tagged create', async () => {
+        const wednesday = await store.create({ ...quickToast, name: 'Wednesday', eatenAt: new Date('2026-03-11T08:00:00Z') })
+        const monday = await store.create({ ...quickToast, name: 'Monday', eatenAt: new Date('2026-03-09T08:00:00Z') })
+        expect(await store.unsynced()).toEqual([
+          { work: 'create', entry: { ...quickToast, name: 'Monday', eatenAt: new Date('2026-03-09T08:00:00Z'), id: monday } },
+          { work: 'create', entry: { ...quickToast, name: 'Wednesday', eatenAt: new Date('2026-03-11T08:00:00Z'), id: wednesday } },
+        ])
+      })
+
+      it('leaves out an entry deleted before it was ever pushed', async () => {
+        const id = await store.create(schnitzel)
+        await store.softDelete(id)
+        expect(await store.unsynced()).toEqual([])
+      })
+    })
+
     describe('soft deleting', () => {
       it('removes the entry from its Day, and leaves the others', async () => {
         const id = await store.create(schnitzel)

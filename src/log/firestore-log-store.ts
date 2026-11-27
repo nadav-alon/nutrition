@@ -91,6 +91,14 @@ export function firestoreLogStore(db: Firestore, uid: core.Uid): LogStore {
         transaction.update(ref, { deletedAt: serverTimestamp() })
       })
     },
+    async unsynced() {
+      // Firestore cannot query for an absent field, so every entry is read and the outstanding ones kept.
+      const { docs } = await getDocs(query(entries, orderBy('eatenAt')))
+      return docs.flatMap((snapshot) => {
+        if (!isLive(snapshot) || snapshot.get('googleHealthId') !== undefined) return []
+        return [{ work: 'create' as const, entry: toLogEntry(snapshot) }]
+      })
+    },
   }
 }
 

@@ -56,5 +56,11 @@ export function fakeLogStore(): LogStore {
       deleted.add(id)
       notify()
     },
+    async unsynced() {
+      return [...entries.values()]
+        .filter((entry) => !deleted.has(entry.id) && entry.googleHealthId === undefined)
+        .sort((a, b) => a.eatenAt.getTime() - b.eatenAt.getTime())
+        .map((entry) => ({ work: 'create' as const, entry }))
+    },
   }
 }
