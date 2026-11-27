@@ -2,6 +2,7 @@ import {
   Timestamp,
   addDoc,
   collection,
+  deleteField,
   doc,
   getDocs,
   limit,
@@ -91,6 +92,13 @@ export function firestoreLogStore(db: Firestore, uid: core.Uid): LogStore {
         transaction.update(ref, { deletedAt: serverTimestamp() })
       })
     },
+    async recordPushed(id, googleHealthId) {
+      const ref = doc(entries, id)
+      await runTransaction(db, async (transaction) => {
+        if (!(await transaction.get(ref)).exists()) throw new Error(`No Log Entry ${id}`)
+        transaction.update(ref, { googleHealthId, googleHealthStale: deleteField() })
+      })
+    },
     async unsynced() {
       // Firestore cannot query for an absent field, so every entry is read and the outstanding ones kept.
       const { docs } = await getDocs(query(entries, orderBy('eatenAt')))
@@ -133,6 +141,8 @@ function toLogEntry(snapshot: DocumentSnapshot): LogEntry {
     mealType: data.mealType,
     eatenAt: eatenAt instanceof Date ? eatenAt : new Timestamp(eatenAt.seconds, eatenAt.nanoseconds).toDate(),
     ...(data.estimated && { estimated: true as const }),
+    ...(data.googleHealthId === undefined ? {} : { googleHealthId: data.googleHealthId }),
+    ...(data.googleHealthStale === true ? { googleHealthStale: true as const } : {}),
   }
 }
 

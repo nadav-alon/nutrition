@@ -56,6 +56,13 @@ export function fakeLogStore(): LogStore {
       deleted.add(id)
       notify()
     },
+    async recordPushed(id, googleHealthId) {
+      const entry = entries.get(id)
+      if (!entry) throw new Error(`No Log Entry ${id}`)
+      const { googleHealthStale: _stale, ...matching } = entry
+      entries.set(id, { ...matching, googleHealthId })
+      notify()
+    },
     async unsynced() {
       return [...entries.values()]
         .filter((entry) => !deleted.has(entry.id) && entry.googleHealthId === undefined)

@@ -69,4 +69,9 @@ export interface LogStore {
    * an empty array.
    */
   unsynced(): Promise<readonly UnsyncedEntry[]>
+  /**
+   * Records that the entry is now Google Health data point `googleHealthId` and matches it: sets
+   * the id and clears `googleHealthStale`. Works on a soft-deleted entry; rejects for one that does not exist.
+   */
+  recordPushed(id: nutrition.LogEntryId, googleHealthId: nutrition.GoogleHealthId): Promise<void>
 }

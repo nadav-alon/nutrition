@@ -217,6 +217,25 @@ export function logStoreContract(name: string, makeStore: () => Promise<LogStore
       })
     })
 
+    describe('recording a push', () => {
+      const pushed = nutrition.googleHealthId('users/me/dataTypes/nutrition/dataPoints/1')
+
+      it('takes the entry off the queue and keeps the id on it', async () => {
+        const id = await store.create(schnitzel)
+        await store.create(quickToast)
+        await store.recordPushed(id, pushed)
+        expect((await store.unsynced()).map(({ entry }) => entry.name)).toEqual(['Toast'])
+        const day = watchDay(store)
+        await day.names(['Toast', 'Schnitzel plate'])
+        expect(day.latest()?.[1]).toEqual({ ...schnitzel, id, googleHealthId: pushed })
+        day.unsubscribe()
+      })
+
+      it('rejects an entry that does not exist', async () => {
+        await expect(store.recordPushed(nutrition.logEntryId('missing'), pushed)).rejects.toThrow()
+      })
+    })
+
     describe('soft deleting', () => {
       it('removes the entry from its Day, and leaves the others', async () => {
         const id = await store.create(schnitzel)
