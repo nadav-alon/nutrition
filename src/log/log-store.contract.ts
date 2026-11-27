@@ -299,6 +299,18 @@ export function logStoreContract(name: string, makeStore: () => Promise<LogStore
         expect(await store.unsynced()).toEqual([])
       })
 
+      it('records a new id on a deleted entry, which stays queued as remove and hidden from reads', async () => {
+        const again = nutrition.googleHealthId('users/me/dataTypes/nutrition/dataPoints/2')
+        const id = await store.create(schnitzel)
+        await store.recordPushed(id, pushed)
+        await store.softDelete(id)
+        await store.recordPushed(id, again)
+        expect(await store.unsynced()).toEqual([{ work: 'remove', entry: { ...schnitzel, id, googleHealthId: again } }])
+        const day = watchDay(store)
+        await day.names([])
+        expect(await store.recent(10)).toEqual([])
+      })
+
       it('clears the id and the stale flag on a live entry, which is then queued as create', async () => {
         const id = await store.create(schnitzel)
         await store.recordPushed(id, pushed)
