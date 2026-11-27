@@ -26,23 +26,46 @@ const FIRESTORE_PORT = 8090
 const FIREBASE_CLI = createRequire(import.meta.url).resolve('firebase-tools/lib/bin/firebase.js')
 const RULES_PATH = 'node_modules/data-platform/firestore.rules'
 
-function waitForPort(port: number, timeoutMs = 60_000): Promise<void> {
-  const deadline = Date.now() + timeoutMs
-  return new Promise((resolve, reject) => {
-    const attempt = () => {
-      const socket = connect(port, HOST)
-      socket.once('connect', () => {
-        socket.destroy()
-        resolve()
-      })
-      socket.once('error', () => {
-        socket.destroy()
-        if (Date.now() > deadline) reject(new Error(`Emulator on port ${port} never came up`))
-        else setTimeout(attempt, 250)
-      })
-    }
-    attempt()
+declare const millisecondsBrand: unique symbol
+
+/** A duration in milliseconds. */
+type Milliseconds = number & { readonly [millisecondsBrand]: true }
+
+/** The guard. */
+function isMilliseconds(value: number): value is Milliseconds {
+  return Number.isFinite(value) && value >= 0
+}
+
+/** The constructor: narrows, or throws. */
+function milliseconds(value: number): Milliseconds {
+  if (!isMilliseconds(value)) throw new Error(`Not a duration in milliseconds: ${value}`)
+  return value
+}
+
+const PORT_TIMEOUT = milliseconds(60_000)
+const PORT_RETRY = milliseconds(250)
+
+/** Whether something listens on `port`. */
+function probe(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = connect(port, HOST)
+    socket.once('connect', () => {
+      socket.destroy()
+      resolve(true)
+    })
+    socket.once('error', () => {
+      socket.destroy()
+      resolve(false)
+    })
   })
+}
+
+async function waitForPort(port: number, timeout: Milliseconds = PORT_TIMEOUT): Promise<void> {
+  const deadline = Date.now() + timeout
+  while (!(await probe(port))) {
+    if (Date.now() > deadline) throw new Error(`Emulator on port ${port} never came up`)
+    await new Promise((resolve) => setTimeout(resolve, PORT_RETRY))
+  }
 }
 
 /** Fixtures hold timestamps in the shape reads return; Firestore must store them as Timestamps, as the platform's own writer does. */
@@ -92,27 +115,12 @@ async function seedAuthUsers(users: readonly UxUser[]): Promise<void> {
   if (error?.length) throw new Error(`Seeding Auth emulator users failed: ${JSON.stringify(error)}`)
 }
 
-/** Whether something already listens on `port`: an emulator of another run would otherwise be seeded as though it were ours. */
-function portTaken(port: number): Promise<boolean> {
-  return new Promise((resolve) => {
-    const socket = connect(port, HOST)
-    socket.once('connect', () => {
-      socket.destroy()
-      resolve(true)
-    })
-    socket.once('error', () => {
-      socket.destroy()
-      resolve(false)
-    })
-  })
-}
-
 async function main(): Promise<void> {
   const name = parseUxArgs(process.argv.slice(2))
   const { users, fixtures } = uxScenario(name, new Date())
 
   for (const port of [AUTH_PORT, FIRESTORE_PORT]) {
-    if (await portTaken(port)) throw new Error(`Port ${port} is already in use; stop the other emulators (or \`npm run ux\`) first.`)
+    if (await probe(port)) throw new Error(`Port ${port} is already in use (an emulator of another run would be seeded as though it were ours); stop the other emulators (or \`npm run ux\`) first.`)
   }
 
   const configDir = mkdtempSync(join(tmpdir(), 'nutrition-ux-'))
