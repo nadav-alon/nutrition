@@ -11,6 +11,7 @@ export function fakeSettingsPort(): SettingsPort {
       return () => listeners.delete(onChange)
     },
     async setGoogleHealthSync(next) {
+      if (next === on) return
       on = next
       for (const listener of listeners) listener(on)
     },

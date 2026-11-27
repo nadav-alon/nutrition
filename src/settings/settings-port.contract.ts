@@ -42,5 +42,18 @@ export function settingsPortContract(name: string, make: () => Promise<SettingsP
       off.stop()
       expect(off.seen).toEqual([false])
     })
+
+    it('delivers nothing new when the switch is set to the value it already has', async () => {
+      const port = await make()
+      const watcher = watchSwitch(port)
+      await watcher.until(1)
+      await port.setGoogleHealthSync(true)
+      await watcher.until(2)
+      await port.setGoogleHealthSync(true)
+      await port.setGoogleHealthSync(false)
+      await watcher.until(3)
+      watcher.stop()
+      expect(watcher.seen).toEqual([false, true, false])
+    })
   })
 }
