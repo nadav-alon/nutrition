@@ -102,6 +102,7 @@ describe('DayScreen entries', () => {
     renderScreen()
     expect(screen.getByText('Nothing logged this day.')).toBeInTheDocument()
     expect(screen.queryByRole('group')).not.toBeInTheDocument()
+    expect(screen.getByRole('meter', { name: 'Protein' })).toHaveTextContent('Protein 0 g eaten')
   })
 })
 
@@ -119,9 +120,9 @@ describe('DayScreen Log action', () => {
 
 describe('DayScreen targets', () => {
   const bar = (name: string) => screen.getByRole('meter', { name })
-  const expectMeterReads = (name: string, text: string) => {
-    expect(within(bar(name)).getByText(text)).toBeInTheDocument()
-    expect(bar(name)).toHaveAttribute('aria-valuetext', text)
+  const expectMeterReads = (name: string, figures: string) => {
+    expect(within(bar(name)).getByText(`${name} ${figures}`)).toBeInTheDocument()
+    expect(bar(name)).toHaveAttribute('aria-valuetext', figures)
   }
 
   it('shows eaten and remaining against each Target', async () => {
@@ -154,6 +155,9 @@ describe('DayScreen targets', () => {
     await log.create(entry('Toast', 'breakfast', 8, 400))
     renderScreen({ log })
     expectMeterReads('Calories', '400 kcal eaten')
+    expectMeterReads('Protein', '10 g eaten')
+    expectMeterReads('Carbs', '20 g eaten')
+    expectMeterReads('Fat', '5 g eaten')
   })
 
   it('shows an over-target macro as over', async () => {
@@ -195,9 +199,9 @@ describe('DayScreen robustness', () => {
     const targets = fakeTargetsPort()
     await targets.write({ proteinG: grams(1), carbsG: grams(0.5) })
     renderScreen({ log, targets })
-    expect(within(bar('Protein')).getByText('0.3 g eaten · 0.7 g left')).toBeInTheDocument()
-    expect(within(bar('Carbs')).getByText('0.6 g eaten · 0.1 g over')).toBeInTheDocument()
-    expect(within(bar('Fat')).getByText('30 g eaten')).toBeInTheDocument()
+    expect(within(bar('Protein')).getByText('Protein 0.3 g eaten · 0.7 g left')).toBeInTheDocument()
+    expect(within(bar('Carbs')).getByText('Carbs 0.6 g eaten · 0.1 g over')).toBeInTheDocument()
+    expect(within(bar('Fat')).getByText('Fat 30 g eaten')).toBeInTheDocument()
     expect(screen.getAllByText('1 serving · 100 kcal')).toHaveLength(3)
   })
 
@@ -205,7 +209,7 @@ describe('DayScreen robustness', () => {
     const targets = fakeTargetsPort()
     await targets.write({ kcal: kcal(0) })
     renderScreen({ targets })
-    expect(within(bar('Calories')).getByText('0 kcal eaten · 0 kcal left')).toBeInTheDocument()
+    expect(within(bar('Calories')).getByText('Calories 0 kcal eaten · 0 kcal left')).toBeInTheDocument()
     expect(bar('Calories').querySelector('progress')).toBeNull()
   })
 
