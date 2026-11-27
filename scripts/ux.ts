@@ -74,6 +74,9 @@ async function seedAuthUsers(users: readonly UxUser[]): Promise<void> {
     }),
   })
   if (!response.ok) throw new Error(`Seeding Auth emulator users failed: ${response.status} ${await response.text()}`)
+  // `batchCreate` answers 200 even when it rejects an individual user, listing them in `error`.
+  const { error } = (await response.json()) as { error?: unknown[] }
+  if (error?.length) throw new Error(`Seeding Auth emulator users failed: ${JSON.stringify(error)}`)
 }
 
 /** Whether something already listens on `port`: an emulator of another run would otherwise be seeded as though it were ours. */
