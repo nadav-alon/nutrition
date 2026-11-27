@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { nutrition } from 'data-platform'
 import { googleHealth } from './google-health-adapter.ts'
 import type { GoogleHealthDeps } from './google-health-adapter.ts'
-import { NotConnectedError } from './google-health.ts'
+import { NotConnectedError, NotLinkedError } from './google-health.ts'
 import type { TokenResponse } from './gis.ts'
 
 /** A GIS stub: `grant` is what the popup answers when `requestAccessToken` runs. */
@@ -86,10 +86,10 @@ const POINT = 'users/me/dataTypes/nutrition-log/dataPoints/abc'
 describe('create', () => {
   it('posts the entry mapped onto a nutrition-log data point and returns its name', async () => {
     const { health, fetchStub } = setup()
-    fetchStub.mockResolvedValue(json({ name: POINT }))
+    fetchStub.mockImplementation(async (url) => (String(url).endsWith('/identity') ? json({}) : json({ name: POINT })))
     await health.connect()
     expect(await health.create(entry)).toBe(POINT)
-    const [url, init] = fetchStub.mock.calls[0]!
+    const [url, init] = fetchStub.mock.calls[1]!
     expect(url).toBe('https://health.googleapis.com/v4/users/me/dataTypes/nutrition-log/dataPoints')
     expect(init?.method).toBe('POST')
     expect(init?.headers).toMatchObject({ authorization: 'Bearer tok' })
@@ -117,5 +117,47 @@ describe('create', () => {
     advance(3_600_000)
     await expect(health.create(entry)).rejects.toBeInstanceOf(NotConnectedError)
     expect(fetchStub).not.toHaveBeenCalled()
+  })
+})
+
+describe('the account link check', () => {
+  const identityThenPoint = (identity: () => Response) => async (url: Parameters<typeof fetch>[0]) =>
+    String(url).endsWith('/identity') ? identity() : json({ name: POINT })
+
+  it('GETs the identity once per token, before the first write', async () => {
+    const { health, fetchStub } = setup()
+    fetchStub.mockImplementation(identityThenPoint(() => json({})))
+    await health.connect()
+    await health.create(entry)
+    await health.create(entry)
+    expect(fetchStub.mock.calls.map(([url, init]) => `${init?.method} ${String(url)}`)).toEqual([
+      'GET https://health.googleapis.com/v4/users/me/identity',
+      'POST https://health.googleapis.com/v4/users/me/dataTypes/nutrition-log/dataPoints',
+      'POST https://health.googleapis.com/v4/users/me/dataTypes/nutrition-log/dataPoints',
+    ])
+    expect(fetchStub.mock.calls[0]?.[1]?.headers).toMatchObject({ authorization: 'Bearer tok' })
+  })
+
+  it('checks again with a new token', async () => {
+    let issued = 0
+    const { health, fetchStub } = setup(({ callback }) => callback({ access_token: `tok-${issued++}`, expires_in: '3599' }))
+    fetchStub.mockImplementation(identityThenPoint(() => json({})))
+    await health.connect()
+    await health.create(entry)
+    await health.connect()
+    await health.create(entry)
+    expect(fetchStub.mock.calls.filter(([url]) => String(url).endsWith('/identity'))).toHaveLength(2)
+  })
+
+  it('rejects as not linked, writing nothing, and checks again next time', async () => {
+    const { health, fetchStub } = setup()
+    fetchStub.mockImplementation(
+      identityThenPoint(() => json({ error: { status: 'FAILED_PRECONDITION', details: [{ reason: 'ACCOUNT_NOT_LINKED' }] } }, 400)),
+    )
+    await health.connect()
+    await expect(health.create(entry)).rejects.toBeInstanceOf(NotLinkedError)
+    await expect(health.create(entry)).rejects.toBeInstanceOf(NotLinkedError)
+    expect(fetchStub.mock.calls.every(([url]) => String(url).endsWith('/identity'))).toBe(true)
+    expect(fetchStub).toHaveBeenCalledTimes(2)
   })
 })

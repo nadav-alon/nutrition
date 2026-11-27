@@ -1,4 +1,4 @@
-import { HealthRequestError, NotConnectedError, dataPointName } from './google-health.ts'
+import { HealthRequestError, NotConnectedError, NotLinkedError, dataPointName } from './google-health.ts'
 import type { GoogleHealth, HealthEntry } from './google-health.ts'
 import type { GisOauth2 } from './gis.ts'
 
@@ -8,6 +8,7 @@ export const SCOPE = 'https://www.googleapis.com/auth/googlehealth.nutrition.wri
 
 const API = 'https://health.googleapis.com/v4'
 const DATA_POINTS = `${API}/users/me/dataTypes/nutrition-log/dataPoints`
+const IDENTITY = `${API}/users/me/identity`
 const MINUTE_MS = 60_000
 
 export interface GoogleHealthDeps {
@@ -49,6 +50,8 @@ function toDataPoint(entry: HealthEntry) {
 /** The `GoogleHealth` adapter over the Google Health REST API and the GIS token client. */
 export function googleHealth(deps: GoogleHealthDeps): GoogleHealth {
   let token: Token | undefined
+  /** The token value whose account link has been confirmed, so the check runs once per token. */
+  let linkedFor: string | undefined
 
   const live = () => (token && deps.now().getTime() < token.expiresAt ? token : undefined)
 
@@ -56,6 +59,10 @@ export function googleHealth(deps: GoogleHealthDeps): GoogleHealth {
   async function send(url: string, method: 'GET' | 'POST', body?: unknown): Promise<unknown> {
     const current = live()
     if (!current) throw new NotConnectedError()
+    if (url !== IDENTITY && linkedFor !== current.value) {
+      await send(IDENTITY, 'GET')
+      linkedFor = current.value
+    }
     let response: Response
     try {
       response = await deps.fetch(url, {
@@ -69,7 +76,11 @@ export function googleHealth(deps: GoogleHealthDeps): GoogleHealth {
     } catch (error) {
       throw new HealthRequestError(undefined, error instanceof Error ? error.message : String(error))
     }
-    if (!response.ok) throw new HealthRequestError(response.status, await response.text())
+    if (!response.ok) {
+      const text = await response.text()
+      if (text.includes('ACCOUNT_NOT_LINKED')) throw new NotLinkedError()
+      throw new HealthRequestError(response.status, text)
+    }
     return response.json()
   }
 
