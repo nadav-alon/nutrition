@@ -55,7 +55,7 @@ interface MacroBarProps {
 function MacroBar({ macro: { label, unit }, eaten: rawEaten, target }: MacroBarProps) {
   const eaten = round(rawEaten)
   const over = target !== undefined && eaten > target
-  const text =
+  const figures =
     target === undefined
       ? `${eaten} ${unit} eaten`
       : over
@@ -69,9 +69,9 @@ function MacroBar({ macro: { label, unit }, eaten: rawEaten, target }: MacroBarP
       aria-valuemin={0}
       aria-valuenow={eaten}
       aria-valuemax={target}
-      aria-valuetext={text}
+      aria-valuetext={figures}
     >
-      <span>{text}</span>
+      <span>{`${label} ${figures}`}</span>
       {target === undefined || target <= 0 ? null : (
         <progress aria-hidden="true" max={target} value={Math.min(eaten, target)} />
       )}
