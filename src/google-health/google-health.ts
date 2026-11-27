@@ -2,7 +2,10 @@ import type { LogEntry } from '../log/log-store.ts'
 
 declare const dataPointNameBrand: unique symbol
 
-/** The resource name Google Health gives a data point it created: `users/me/dataTypes/nutrition-log/dataPoints/…`. */
+/** The path, under the API root, of the Member's nutrition-log data points; a data point's name is this plus `/<id>`. */
+export const DATA_POINTS_PATH = 'users/me/dataTypes/nutrition-log/dataPoints'
+
+/** The resource name Google Health gives a data point it created: `${DATA_POINTS_PATH}/…`. */
 export type DataPointName = string & { readonly [dataPointNameBrand]: true }
 
 /** The guard: whether `value` names a data point. */

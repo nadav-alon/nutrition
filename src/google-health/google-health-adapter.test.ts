@@ -5,6 +5,7 @@ import { googleHealth } from './google-health-adapter.ts'
 import type { GoogleHealthDeps } from './google-health-adapter.ts'
 import { HealthRequestError, NotConnectedError, NotLinkedError } from './google-health.ts'
 import type { TokenResponse } from './gis.ts'
+import { googleHealthContract } from './google-health.contract.ts'
 
 /** A GIS stub: `grant` is what the popup answers when `requestAccessToken` runs. */
 type Grant = (callbacks: {
@@ -35,6 +36,17 @@ function setup(grant: Grant = grantToken()) {
   const health = googleHealth({ gis: stub.gis, fetch: fetchStub, now: () => clock })
   return { health, stub, fetchStub, advance: (ms: number) => (clock = new Date(clock.getTime() + ms)) }
 }
+
+let issued = 0
+googleHealthContract('googleHealth', () => {
+  const { health, fetchStub } = setup()
+  fetchStub.mockImplementation(async (url) => {
+    const text = String(url)
+    if (text.endsWith('/identity') || text.endsWith(':batchDelete')) return json({})
+    return json({ name: `users/me/dataTypes/nutrition-log/dataPoints/p-${issued++}` })
+  })
+  return { health, requests: () => fetchStub.mock.calls.length }
+})
 
 describe('connect and isConnected', () => {
   it('is not connected before connect()', () => {

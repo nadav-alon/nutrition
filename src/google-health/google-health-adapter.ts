@@ -1,4 +1,4 @@
-import { HealthRequestError, NotConnectedError, NotLinkedError, isDataPointName } from './google-health.ts'
+import { HealthRequestError, NotConnectedError, NotLinkedError, DATA_POINTS_PATH, isDataPointName } from './google-health.ts'
 import type { GoogleHealth, HealthEntry } from './google-health.ts'
 import type { GisOauth2 } from './gis.ts'
 
@@ -7,7 +7,7 @@ export const CLIENT_ID = '465702061647-iof716k14dhp3lg1dr19l4n6dchgigm9.apps.goo
 export const SCOPE = 'https://www.googleapis.com/auth/googlehealth.nutrition.writeonly'
 
 const API = 'https://health.googleapis.com/v4'
-const DATA_POINTS = `${API}/users/me/dataTypes/nutrition-log/dataPoints`
+const DATA_POINTS = `${API}/${DATA_POINTS_PATH}`
 const IDENTITY = `${API}/users/me/identity`
 const MINUTE_MS = 60_000
 /** Google tokens last about an hour; used when the grant does not say. */
