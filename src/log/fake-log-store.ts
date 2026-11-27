@@ -49,7 +49,8 @@ export function fakeLogStore(): LogStore {
     async update(id, edit) {
       const entry = entries.get(id)
       if (!entry || deleted.has(id)) throw new Error(`No live Log Entry ${id}`)
-      entries.set(id, applyEdit(entry, edit))
+      const edited = applyEdit(entry, edit)
+      entries.set(id, edited.googleHealthId === undefined ? edited : { ...edited, googleHealthStale: true })
       notify()
     },
     async softDelete(id) {
@@ -65,9 +66,12 @@ export function fakeLogStore(): LogStore {
     },
     async unsynced() {
       return [...entries.values()]
-        .filter((entry) => !deleted.has(entry.id) && entry.googleHealthId === undefined)
+        .filter((entry) => !deleted.has(entry.id))
         .sort((a, b) => a.eatenAt.getTime() - b.eatenAt.getTime())
-        .map((entry) => ({ work: 'create' as const, entry }))
+        .flatMap((entry) => {
+          const work = entry.googleHealthId === undefined ? 'create' : entry.googleHealthStale ? 'replace' : undefined
+          return work ? [{ work, entry }] : []
+        })
     },
   }
 }

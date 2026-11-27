@@ -82,6 +82,7 @@ export function firestoreLogStore(db: Firestore, uid: core.Uid): LogStore {
           mealType: edited.mealType,
           eatenAt: Timestamp.fromDate(edited.eatenAt),
           nutrition: edited.nutrition,
+          ...(current.googleHealthId !== undefined && { googleHealthStale: true }),
         })
       })
     },
@@ -103,8 +104,10 @@ export function firestoreLogStore(db: Firestore, uid: core.Uid): LogStore {
       // Firestore cannot query for an absent field, so every entry is read and the outstanding ones kept.
       const { docs } = await getDocs(query(entries, orderBy('eatenAt')))
       return docs.flatMap((snapshot) => {
-        if (!isLive(snapshot) || snapshot.get('googleHealthId') !== undefined) return []
-        return [{ work: 'create' as const, entry: toLogEntry(snapshot) }]
+        if (!isLive(snapshot)) return []
+        const entry = toLogEntry(snapshot)
+        const work = entry.googleHealthId === undefined ? 'create' : entry.googleHealthStale ? 'replace' : undefined
+        return work ? [{ work, entry }] : []
       })
     },
   }

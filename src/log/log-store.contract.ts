@@ -231,6 +231,30 @@ export function logStoreContract(name: string, makeStore: () => Promise<LogStore
         day.unsubscribe()
       })
 
+      it('queues a pushed entry for replacement once it is updated, and clears that when pushed again', async () => {
+        const id = await store.create(schnitzel)
+        await store.recordPushed(id, pushed)
+        await store.update(id, { mealType: 'dinner' })
+        const queued = await store.unsynced()
+        expect(queued.map(({ work }) => work)).toEqual(['replace'])
+        expect(queued[0]?.entry).toEqual({ ...schnitzel, id, mealType: 'dinner', googleHealthId: pushed, googleHealthStale: true })
+        const again = nutrition.googleHealthId('users/me/dataTypes/nutrition/dataPoints/2')
+        await store.recordPushed(id, again)
+        expect(await store.unsynced()).toEqual([])
+        const day = watchDay(store)
+        await day.names(['Schnitzel plate'])
+        expect(day.latest()?.[0]).toEqual({ ...schnitzel, id, mealType: 'dinner', googleHealthId: again })
+        day.unsubscribe()
+      })
+
+      it('leaves an entry never pushed as create when it is updated', async () => {
+        const id = await store.create(schnitzel)
+        await store.update(id, { mealType: 'dinner' })
+        const queued = await store.unsynced()
+        expect(queued.map(({ work }) => work)).toEqual(['create'])
+        expect(queued[0]?.entry.googleHealthStale).toBeUndefined()
+      })
+
       it('rejects an entry that does not exist', async () => {
         await expect(store.recordPushed(nutrition.logEntryId('missing'), pushed)).rejects.toThrow()
       })
