@@ -26,7 +26,7 @@ export function AccountAction() {
   if (member === null) return null
   return (
     <TopAppBarActions>
-      <IconButton symbol={AccountCircle} label="Account" onClick={() => setOpen(true)} />
+      <IconButton symbol={AccountCircle} label="Account" title="Account" onClick={() => setOpen(true)} />
       <Dialog open={open} title="Account" onClose={() => setOpen(false)} closable>
         <p>{member.email}</p>
         <SignOutButton onClick={member.signOut} />
