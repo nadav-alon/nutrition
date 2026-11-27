@@ -161,7 +161,7 @@ describe('AuthGate account', () => {
     )
     mocks.listener!(user)
     const account = await screen.findByRole('button', { name: 'Account' })
-    expect(account).toHaveAttribute('title', 'Account')
+    expect(account).toHaveAttribute('title', 'Account and sign out')
     fireEvent.click(account)
     expect(screen.getByText('a@example.com')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
