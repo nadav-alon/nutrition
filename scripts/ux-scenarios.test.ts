@@ -5,12 +5,11 @@ import { DEFAULT_SCENARIO, SCENARIO_NAMES, scenarioName, uxScenario } from './ux
 
 const NOW = new Date(2026, 10, 27, 18, 0)
 
-/** The fixtures a scenario writes, after `seedFixtures` has checked each against the platform's schemas. */
-async function seeded(name: (typeof SCENARIO_NAMES)[number]): Promise<Fixture[]> {
-  const written: Fixture[] = []
+/** The fixtures a scenario writes, once `seedFixtures` has checked each against the platform's schemas. */
+async function seeded(name: (typeof SCENARIO_NAMES)[number]): Promise<readonly Fixture[]> {
   const { fixtures } = uxScenario(scenarioName(name), NOW)
-  await seedFixtures({ set: async (path, data) => void written.push(fixtures.find((f) => `${f.collection}/${f.id}` === path && f.data === data)!) }, fixtures)
-  return written
+  await seedFixtures({ set: async () => {} }, fixtures)
+  return fixtures
 }
 
 const inCollection = (fixtures: readonly Fixture[], prefix: string) => fixtures.filter((f) => f.collection.startsWith(prefix))
