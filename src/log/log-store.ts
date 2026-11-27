@@ -62,7 +62,10 @@ export interface LogStore {
    * does not exist or is deleted.
    */
   update(id: nutrition.LogEntryId, edit: LogEntryEdit): Promise<void>
-  /** Soft deletes an entry; it is never returned again. Deleting one already deleted is a no-op. */
+  /**
+   * Soft deletes an entry; no read returns it again except `unsynced()`, while it awaits removal from
+   * Google Health. Deleting one already deleted is a no-op.
+   */
   softDelete(id: nutrition.LogEntryId): Promise<void>
   /**
    * Every entry with push work outstanding, across Days, oldest eaten first. Nothing outstanding is
