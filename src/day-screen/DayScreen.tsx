@@ -55,12 +55,13 @@ interface MacroBarProps {
 function MacroBar({ macro: { label, unit }, eaten: rawEaten, target }: MacroBarProps) {
   const eaten = round(rawEaten)
   const over = target !== undefined && eaten > target
+  const eatenFigure = `${eaten} ${unit} eaten`
   const figures =
     target === undefined
-      ? `${eaten} ${unit} eaten`
+      ? eatenFigure
       : over
-        ? `${eaten} ${unit} eaten · ${round(eaten - target)} ${unit} over`
-        : `${eaten} ${unit} eaten · ${round(target - eaten)} ${unit} left`
+        ? `${eatenFigure} · ${round(eaten - target)} ${unit} over`
+        : `${eatenFigure} · ${round(target - eaten)} ${unit} left`
   return (
     <div
       class={over ? 'macro-bar over' : 'macro-bar'}
