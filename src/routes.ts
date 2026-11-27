@@ -10,6 +10,9 @@ export type Route =
   | { name: 'foods'; form?: 'new' | nutrition.FoodId }
   | { name: 'targets' }
 
+/** The hash of today's Day: `parseRoute` reads it, like an empty hash, as whichever Day is today. */
+export const HOME_HASH = '#/'
+
 /**
  * The location hash for `route`. Routes live in the hash because the app is served from static
  * hosting, where a deeper path would 404 on refresh. An estimate link is only ever read, never
@@ -19,7 +22,7 @@ export type Route =
 export function hashFor(route: Route, today: Day): string {
   switch (route.name) {
     case 'day':
-      return route.day === today ? '#/' : `#/day/${route.day}`
+      return route.day === today ? HOME_HASH : `#/day/${route.day}`
     case 'log':
       return `#/day/${route.day}/log`
     case 'entry':
@@ -32,7 +35,7 @@ export function hashFor(route: Route, today: Day): string {
 }
 
 /**
- * The route a location `hash` names. A hash that names none, such as an empty one, is today's Day.
+ * The route a location `hash` names. A hash that names none, such as an empty one or `HOME_HASH`, is today's Day.
  * `#/log?…` is the Log screen on today's Day, opened on a Quick Entry when the query is an estimate link.
  */
 export function parseRoute(hash: string, today: Day): Route {
@@ -80,4 +83,9 @@ function decodeFoodId(text: string): nutrition.FoodId | undefined {
   } catch {
     return undefined
   }
+}
+
+/** The route codec bound to `today`, so a caller cannot mix Days between writing and reading. */
+export function routesFor(today: Day): { hashFor: (route: Route) => string; parseRoute: (hash: string) => Route } {
+  return { hashFor: (route) => hashFor(route, today), parseRoute: (hash) => parseRoute(hash, today) }
 }
