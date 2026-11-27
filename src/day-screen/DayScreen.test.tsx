@@ -38,6 +38,9 @@ describe('DayScreen day navigation', () => {
   it('gives the Previous day and Next day buttons a tooltip equal to their label', () => {
     renderScreen()
     expect(screen.getByRole('button', { name: 'Previous day' })).toHaveAttribute('title', 'Previous day')
+    // Next day is disabled on today, where a tooltip does not reliably show; check it on a past day.
+    fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
+    expect(screen.getByRole('button', { name: 'Next day' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Next day' })).toHaveAttribute('title', 'Next day')
   })
 
