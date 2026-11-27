@@ -53,7 +53,7 @@ describe('App routes', () => {
     expect(location.hash).toBe(`#/day/${previousDay(today)}`)
     first.unmount()
     render(<App {...ports()} />)
-    expect(screen.getByRole('heading', { name: previousDay(today) })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Yesterday' })).toBeInTheDocument()
   })
 
   it("leaves a route meaning today when the Member comes back to today's Day", () => {

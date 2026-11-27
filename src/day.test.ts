@@ -118,6 +118,15 @@ describe('dayLabel', () => {
     expect(dayLabel(day('2026-11-27'), now)).toBe('Today')
   })
 
+  it('writes an older Day of the current year as weekday, date and month', () => {
+    expect(dayLabel(day('2026-11-25'), now)).toBe('Wed 25 Nov')
+    expect(dayLabel(day('2026-01-01'), now)).toBe('Thu 1 Jan')
+  })
+
+  it('adds the year when it is not the current one', () => {
+    expect(dayLabel(day('2025-12-31'), now)).toBe('Wed 31 Dec 2025')
+  })
+
   it('calls the Day before Yesterday', () => {
     expect(dayLabel(day('2026-11-26'), now)).toBe('Yesterday')
   })

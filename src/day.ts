@@ -91,9 +91,20 @@ export function defaultEatenTime(value: Day, now: Date): Date {
   return localMidnight(value, 0, now)
 }
 
-/** How a Member reads `value` as the header of the Day screen: `Today` or `Yesterday` relative to `now`. */
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const
+
+/**
+ * How a Member reads `value` as the header of the Day screen, relative to `now`: `Today`,
+ * `Yesterday`, or a short date like `Thu 26 Nov`, with the year (`Thu 26 Nov 2025`) only when it
+ * isn't the current one.
+ */
 export function dayLabel(value: Day, now: Date): string {
   const today = dayOf(now)
   if (value === today) return 'Today'
-  return 'Yesterday'
+  if (value === previousDay(today)) return 'Yesterday'
+  const { year, month, dayOfMonth } = parts(value)!
+  const weekday = WEEKDAYS[new Date(Date.UTC(year, month - 1, dayOfMonth)).getUTCDay()]
+  const short = `${weekday} ${dayOfMonth} ${MONTHS[month - 1]}`
+  return year === now.getFullYear() ? short : `${short} ${year}`
 }
