@@ -1,5 +1,5 @@
 import { core, nutrition } from 'data-platform'
-import type { Fixture } from 'data-platform/local'
+import { seedFixtures, type Fixture } from 'data-platform/local'
 
 /** An account the Auth emulator is seeded with, so the fake Google sign-in as `email` lands on a Member. */
 export interface UxUser {
@@ -155,4 +155,9 @@ const SCENARIOS: Record<(typeof SCENARIO_NAMES)[number], (now: Date) => UxScenar
 export function uxScenario(name: ScenarioName, now: Date): UxScenario {
   const key: (typeof SCENARIO_NAMES)[number] = name
   return SCENARIOS[key](now)
+}
+
+/** Checks every fixture against the platform's schemas, writing nothing: `seedFixtures` into a writer that discards. */
+export async function validateFixtures(fixtures: readonly Fixture[]): Promise<void> {
+  await seedFixtures({ set: async () => {} }, fixtures)
 }

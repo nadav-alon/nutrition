@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { nutrition } from 'data-platform'
-import { seedFixtures, type Fixture } from 'data-platform/local'
-import { DEFAULT_SCENARIO, SCENARIO_NAMES, scenarioName, uxScenario } from './ux-scenarios.ts'
+import type { Fixture } from 'data-platform/local'
+import { DEFAULT_SCENARIO, SCENARIO_NAMES, scenarioName, uxScenario, validateFixtures } from './ux-scenarios.ts'
 
 const NOW = new Date(2026, 10, 27, 18, 0)
 
 /** The fixtures a scenario writes, once `seedFixtures` has checked each against the platform's schemas. */
 async function seeded(name: (typeof SCENARIO_NAMES)[number]): Promise<readonly Fixture[]> {
   const { fixtures } = uxScenario(scenarioName(name), NOW)
-  await seedFixtures({ set: async () => {} }, fixtures)
+  await validateFixtures(fixtures)
   return fixtures
 }
 

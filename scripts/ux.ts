@@ -5,10 +5,13 @@ import { connect } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { initializeTestEnvironment } from '@firebase/rules-unit-testing'
+import firebase from 'firebase/compat/app'
+import 'firebase/compat/firestore'
 import { createServer } from 'vite'
-import { LOCAL_PROJECT_ID, seedFixtures } from 'data-platform/local'
+import { core } from 'data-platform'
+import { LOCAL_PROJECT_ID, type Fixture } from 'data-platform/local'
 import { parseUxArgs } from './ux-args.ts'
-import { uxScenario, type UxUser } from './ux-scenarios.ts'
+import { uxScenario, validateFixtures, type UxUser } from './ux-scenarios.ts'
 
 /**
  * `npm run ux -- --scenario <name>`: the app on the local Firebase emulators, seeded for one
@@ -42,9 +45,19 @@ function waitForPort(port: number, timeoutMs = 60_000): Promise<void> {
   })
 }
 
+/** Fixtures hold timestamps in the shape reads return; Firestore must store them as Timestamps, as the platform's own writer does. */
+function toStoredData(data: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(data).map(([key, value]) => {
+      const timestamp = core.firestoreTimestampSchema.safeParse(value)
+      return [key, timestamp.success ? new firebase.firestore.Timestamp(timestamp.data.seconds, timestamp.data.nanoseconds) : value]
+    }),
+  )
+}
+
 /** Writes the scenario's documents past the rules, so the Household starts claimed. */
-async function seedFirestore(fixtures: ReturnType<typeof uxScenario>['fixtures']): Promise<void> {
-  await seedFixtures({ set: async () => {} }, fixtures)
+async function seedFirestore(fixtures: readonly Fixture[]): Promise<void> {
+  await validateFixtures(fixtures)
   const env = await initializeTestEnvironment({
     projectId: LOCAL_PROJECT_ID,
     firestore: { rules: readFileSync(RULES_PATH, 'utf8'), host: HOST, port: FIRESTORE_PORT },
@@ -52,7 +65,7 @@ async function seedFirestore(fixtures: ReturnType<typeof uxScenario>['fixtures']
   try {
     await env.withSecurityRulesDisabled(async (context) => {
       const db = context.firestore()
-      for (const { collection, id, data } of fixtures) await db.doc(`${collection}/${id}`).set(data)
+      for (const { collection, id, data } of fixtures) await db.doc(`${collection}/${id}`).set(toStoredData(data))
     })
   } finally {
     await env.cleanup()
