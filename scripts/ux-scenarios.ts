@@ -39,7 +39,7 @@ const MEMBER: UxUser = { uid: core.uid('ux-member'), email: core.email('member@e
 
 const ADDED_AT = { seconds: 1_700_000_000, nanoseconds: 0 }
 
-const macros = (kcal: number, protein: number, carbs: number, fat: number): nutrition.Nutrition => ({
+const nutritionOf = (kcal: number, protein: number, carbs: number, fat: number): nutrition.Nutrition => ({
   kcal: nutrition.kcal(kcal),
   proteinG: nutrition.grams(protein),
   carbsG: nutrition.grams(carbs),
@@ -58,21 +58,31 @@ function localTime(now: Date, daysAgo: number, hour: number, minute = 0): Date {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo, hour, minute)
 }
 
-const food = (id: string, name: string, perServing: nutrition.Nutrition, optional: object = {}): Fixture => ({
+const SCHNITZEL_PLATE = nutrition.foodId('schnitzel-plate')
+const PROTEIN_BAR = nutrition.foodId('protein-bar')
+const FALAFEL_PITA = nutrition.foodId('falafel-pita')
+
+/** The Food fields a fixture may add to its name and Nutrition, typed so a typo fails to compile. */
+type FoodExtras = Pick<nutrition.Food, 'place' | 'servingLabel' | 'estimated'>
+
+/** A Log Entry's fields besides `eatenAt`, typed so a typo fails to compile. */
+type LogEntryFields = Pick<nutrition.LogEntry, 'mealType' | 'source' | 'name' | 'servings' | 'nutrition' | 'estimated'>
+
+const food = (id: nutrition.FoodId, name: string, perServing: nutrition.Nutrition, optional: FoodExtras = {}): Fixture => ({
   collection: nutrition.FOODS_COLLECTION,
   id,
   data: { name, perServing, ...optional },
 })
 
-const logEntry = (id: string, eatenAt: Date, entry: object): Fixture => ({
+const logEntry = (id: string, eatenAt: Date, entry: LogEntryFields): Fixture => ({
   collection: `${nutrition.NUTRITION_LOGS_COLLECTION}/${MEMBER.uid}/${nutrition.LOG_ENTRIES_COLLECTION}`,
   id,
   data: { eatenAt, ...entry },
 })
 
 function ownerWithItems(now: Date): UxScenario {
-  const schnitzel = macros(720, 38, 64, 33)
-  const bar = macros(210, 20, 22, 7)
+  const schnitzel = nutritionOf(720, 38, 64, 33)
+  const bar = nutritionOf(210, 20, 22, 7)
   return {
     users: [MEMBER],
     fixtures: [
@@ -82,19 +92,19 @@ function ownerWithItems(now: Date): UxScenario {
         id: MEMBER.uid,
         data: { kcal: nutrition.kcal(2200), proteinG: nutrition.grams(140), carbsG: nutrition.grams(240), fatG: nutrition.grams(70) },
       },
-      food('schnitzel-plate', 'Chicken schnitzel plate', schnitzel, { place: 'work canteen', servingLabel: '1 plate', estimated: true }),
-      food('protein-bar', 'Protein bar', bar, { servingLabel: '1 bar' }),
-      food('falafel-pita', 'Falafel in a pita', macros(560, 18, 74, 21), { place: 'corner stand' }),
+      food(SCHNITZEL_PLATE, 'Chicken schnitzel plate', schnitzel, { place: 'work canteen', servingLabel: '1 plate', estimated: true }),
+      food(PROTEIN_BAR, 'Protein bar', bar, { servingLabel: '1 bar' }),
+      food(FALAFEL_PITA, 'Falafel in a pita', nutritionOf(560, 18, 74, 21), { place: 'corner stand' }),
       logEntry('today-breakfast', localTime(now, 0, 7, 30), {
         mealType: 'breakfast',
         source: { kind: 'quick' },
         name: 'Yogurt and granola',
         servings: 1,
-        nutrition: macros(320, 14, 45, 9),
+        nutrition: nutritionOf(320, 14, 45, 9),
       }),
       logEntry('today-lunch', localTime(now, 0, 12, 45), {
         mealType: 'lunch',
-        source: { kind: 'food', foodId: nutrition.foodId('schnitzel-plate') },
+        source: { kind: 'food', foodId: SCHNITZEL_PLATE },
         name: 'Chicken schnitzel plate',
         servings: 1,
         nutrition: schnitzel,
@@ -104,7 +114,7 @@ function ownerWithItems(now: Date): UxScenario {
         source: { kind: 'quick' },
         name: 'Street shawarma, roughly',
         servings: 1,
-        nutrition: macros(650, 35, 55, 30),
+        nutrition: nutritionOf(650, 35, 55, 30),
         estimated: true,
       }),
       logEntry('earlier-breakfast', localTime(now, 1, 8), {
@@ -112,21 +122,21 @@ function ownerWithItems(now: Date): UxScenario {
         source: { kind: 'quick' },
         name: 'Toast and eggs',
         servings: 1,
-        nutrition: macros(380, 22, 34, 17),
+        nutrition: nutritionOf(380, 22, 34, 17),
       }),
       logEntry('earlier-snack', localTime(now, 1, 16, 30), {
         mealType: 'snack',
-        source: { kind: 'food', foodId: nutrition.foodId('protein-bar') },
+        source: { kind: 'food', foodId: PROTEIN_BAR },
         name: 'Protein bar',
         servings: 2,
-        nutrition: macros(420, 40, 44, 14),
+        nutrition: nutritionOf(420, 40, 44, 14),
       }),
       logEntry('earlier-dinner', localTime(now, 1, 20), {
         mealType: 'dinner',
-        source: { kind: 'food', foodId: nutrition.foodId('falafel-pita') },
+        source: { kind: 'food', foodId: FALAFEL_PITA },
         name: 'Falafel in a pita',
         servings: 1,
-        nutrition: macros(560, 18, 74, 21),
+        nutrition: nutritionOf(560, 18, 74, 21),
       }),
     ],
   }
@@ -136,7 +146,13 @@ function newMember(): UxScenario {
   return { users: [MEMBER], fixtures: household() }
 }
 
+const SCENARIOS: Record<(typeof SCENARIO_NAMES)[number], (now: Date) => UxScenario> = {
+  'owner-with-items': ownerWithItems,
+  'new-member': newMember,
+}
+
 /** The Household a scenario starts from. `now` places Log Entries on today and on the Day before. */
 export function uxScenario(name: ScenarioName, now: Date): UxScenario {
-  return name === 'new-member' ? newMember() : ownerWithItems(now)
+  const key: (typeof SCENARIO_NAMES)[number] = name
+  return SCENARIOS[key](now)
 }
