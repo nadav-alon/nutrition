@@ -90,3 +90,10 @@ export function defaultEatenTime(value: Day, now: Date): Date {
   if (value === dayOf(now)) return new Date(now)
   return localMidnight(value, 0, now)
 }
+
+/** How a Member reads `value` as the header of the Day screen: `Today` or `Yesterday` relative to `now`. */
+export function dayLabel(value: Day, now: Date): string {
+  const today = dayOf(now)
+  if (value === today) return 'Today'
+  return 'Yesterday'
+}

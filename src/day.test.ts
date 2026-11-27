@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { day, dayEnd, defaultEatenTime, dayOf, dayStart, isDay, nextDay, previousDay } from './day.ts'
+import { day, dayEnd, dayLabel, defaultEatenTime, dayOf, dayStart, isDay, nextDay, previousDay } from './day.ts'
 
 describe('Day', () => {
   it('accepts a real calendar day and refuses anything else', () => {
@@ -108,5 +108,17 @@ describe('default eaten time', () => {
     const midnight = new Date(2026, 5, 16)
     expect(defaultEatenTime(day('2026-06-15'), midnight)).toEqual(new Date(2026, 5, 15))
     expect(defaultEatenTime(day('2026-06-16'), midnight)).toEqual(midnight)
+  })
+})
+
+describe('dayLabel', () => {
+  const now = new Date(2026, 10, 27, 12)
+
+  it('calls the current Day Today', () => {
+    expect(dayLabel(day('2026-11-27'), now)).toBe('Today')
+  })
+
+  it('calls the Day before Yesterday', () => {
+    expect(dayLabel(day('2026-11-26'), now)).toBe('Yesterday')
   })
 })

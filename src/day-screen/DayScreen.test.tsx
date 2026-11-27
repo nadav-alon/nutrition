@@ -45,7 +45,7 @@ describe('DayScreen day navigation', () => {
   it('steps to earlier Days and back', () => {
     renderScreen()
     fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
-    expect(screen.getByRole('heading', { name: '2026-03-09' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Yesterday' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Next day' })).toBeEnabled()
     fireEvent.click(screen.getByRole('button', { name: 'Next day' }))
     expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument()
