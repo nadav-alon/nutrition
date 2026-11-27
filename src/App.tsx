@@ -59,6 +59,7 @@ export function App({ log, foods, targets }: AppPorts) {
           onDayChange={(day) => go({ name: 'day', day })}
           onOpenEntry={(entry) => go({ name: 'entry', day: route.day, id: entry.id })}
           onLog={(day) => go({ name: 'log', day })}
+          onSetTargets={() => go({ name: 'targets' })}
         />
       )}
       {route.name === 'log' && (

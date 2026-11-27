@@ -23,6 +23,8 @@ export interface DayScreenProps {
   onOpenEntry: (entry: LogEntry) => void
   /** Called with the viewed Day when the Member asks to log on it. */
   onLog: (day: Day) => void
+  /** Called when the Member asks to set their Targets. */
+  onSetTargets: () => void
 }
 
 const MEAL_TYPE_LABELS: Record<nutrition.MealType, string> = {
@@ -40,6 +42,9 @@ const MACROS: readonly { key: MacroKey; label: string; unit: 'kcal' | 'g' }[] = 
   { key: 'carbsG', label: 'Carbs', unit: 'g' },
   { key: 'fatG', label: 'Fat', unit: 'g' },
 ]
+
+/** The Member's Targets as the subscription has reported them: not yet, unreadable, or loaded (`null` when none are saved). */
+type TargetsState = { status: 'loading' } | { status: 'failed' } | { status: 'loaded'; targets: Targets | null }
 
 /** Display rounding: one decimal, so summed floats never print as `30.000000000000004`. */
 function round(value: number): number {
@@ -81,14 +86,21 @@ function MacroBar({ macro: { label, unit }, eaten: rawEaten, target }: MacroBarP
 }
 
 /** One Day's Log Entries against the Member's Targets; stepping to earlier Days. */
-export function DayScreen({ log, targets, now, day: viewed, onDayChange, onOpenEntry, onLog }: DayScreenProps) {
+export function DayScreen({ log, targets, now, day: viewed, onDayChange, onOpenEntry, onLog, onSetTargets }: DayScreenProps) {
   const today = dayOf(now)
   const dayEntries = useDayEntries(log, viewed)
-  const [memberTargets, setMemberTargets] = useState<Targets | null>(null)
-  const [targetsFailed, setTargetsFailed] = useState(false)
+  const [targetsState, setTargetsState] = useState<TargetsState>({ status: 'loading' })
   useEffect(() => {
-    return targets.subscribe(setMemberTargets, () => setTargetsFailed(true))
+    return targets.subscribe(
+      (loaded) => setTargetsState({ status: 'loaded', targets: loaded }),
+      () => setTargetsState({ status: 'failed' }),
+    )
   }, [targets])
+  const memberTargets = targetsState.status === 'loaded' ? targetsState.targets : null
+  // A Member with every Target unset has none either.
+  const noTargets =
+    targetsState.status === 'loaded' &&
+    (memberTargets === null || Object.values(memberTargets).every((value) => value === undefined))
   const entries = dayEntries.status === 'loaded' ? dayEntries.entries : null
   const total = (key: MacroKey) => (entries ?? []).reduce((sum, entry) => sum + entry.nutrition[key], 0)
   return (
@@ -103,7 +115,20 @@ export function DayScreen({ log, targets, now, day: viewed, onDayChange, onOpenE
           onClick={() => onDayChange(nextDay(viewed, now))}
         />
       </header>
-      {targetsFailed ? <p>Targets unavailable.</p> : null}
+      {targetsState.status === 'failed' ? <p>Targets unavailable.</p> : null}
+      {noTargets ? (
+        <p>
+          No Targets set. <a
+            href="#/targets"
+            onClick={(event) => {
+              event.preventDefault()
+              onSetTargets()
+            }}
+          >
+            Set Targets
+          </a>
+        </p>
+      ) : null}
       {dayEntries.status === 'error' ? (
         <p>Log unavailable.</p>
       ) : entries === null ? (
