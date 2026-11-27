@@ -102,6 +102,7 @@ describe('DayScreen entries', () => {
     renderScreen()
     expect(screen.getByText('Nothing logged this day.')).toBeInTheDocument()
     expect(screen.queryByRole('group')).not.toBeInTheDocument()
+    expect(screen.getByRole('meter', { name: 'Protein' })).toHaveTextContent('Protein 0 g eaten')
   })
 })
 
@@ -154,6 +155,9 @@ describe('DayScreen targets', () => {
     await log.create(entry('Toast', 'breakfast', 8, 400))
     renderScreen({ log })
     expectMeterReads('Calories', '400 kcal eaten')
+    expectMeterReads('Protein', '10 g eaten')
+    expectMeterReads('Carbs', '20 g eaten')
+    expectMeterReads('Fat', '5 g eaten')
   })
 
   it('shows an over-target macro as over', async () => {
