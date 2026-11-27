@@ -31,29 +31,35 @@ export function App({ log, foods, targets }: AppPorts) {
   const backToDay = (day: Day) => back({ name: 'day', day })
   return (
     <TopAppBar title="Nutrition">
+      <TopAppBarActions>
+        <nav class="app-nav" aria-label="Main">
+          <Button
+            variant={route.name === 'foods' ? 'tonal' : 'text'}
+            aria-current={route.name === 'foods' ? 'page' : undefined}
+            onClick={() => go({ name: 'foods' })}
+          >
+            Foods
+          </Button>
+          <Button
+            variant={route.name === 'targets' ? 'tonal' : 'text'}
+            aria-current={route.name === 'targets' ? 'page' : undefined}
+            onClick={() => go({ name: 'targets' })}
+          >
+            Targets
+          </Button>
+        </nav>
+      </TopAppBarActions>
       <AccountAction />
       {route.name === 'day' && (
-        <>
-          <DayScreen
-            log={log}
-            targets={targets}
-            now={now}
-            day={route.day}
-            onDayChange={(day) => go({ name: 'day', day })}
-            onOpenEntry={(entry) => go({ name: 'entry', day: route.day, id: entry.id })}
-            onLog={(day) => go({ name: 'log', day })}
-          />
-          <TopAppBarActions>
-            <nav class="app-nav" aria-label="Main">
-              <Button variant="text" onClick={() => go({ name: 'foods' })}>
-                Foods
-              </Button>
-              <Button variant="text" onClick={() => go({ name: 'targets' })}>
-                Targets
-              </Button>
-            </nav>
-          </TopAppBarActions>
-        </>
+        <DayScreen
+          log={log}
+          targets={targets}
+          now={now}
+          day={route.day}
+          onDayChange={(day) => go({ name: 'day', day })}
+          onOpenEntry={(entry) => go({ name: 'entry', day: route.day, id: entry.id })}
+          onLog={(day) => go({ name: 'log', day })}
+        />
       )}
       {route.name === 'log' && (
         <LogScreen
