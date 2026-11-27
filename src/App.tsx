@@ -1,4 +1,4 @@
-import { TopAppBar } from 'household-ui/shell/TopAppBar.tsx'
+import { TopAppBar, TopAppBarActions } from 'household-ui/shell/TopAppBar.tsx'
 import { Button } from 'household-ui/ui/Button.tsx'
 import type { nutrition } from 'data-platform'
 import { AccountAction } from './gate/account.tsx'
@@ -31,27 +31,35 @@ export function App({ log, foods, targets }: AppPorts) {
   const backToDay = (day: Day) => back({ name: 'day', day })
   return (
     <TopAppBar title="Nutrition">
+      <TopAppBarActions>
+        <nav class="app-nav" aria-label="Main">
+          <Button
+            variant={route.name === 'foods' ? 'tonal' : 'text'}
+            aria-current={route.name === 'foods' ? 'page' : undefined}
+            onClick={() => go({ name: 'foods' })}
+          >
+            Foods
+          </Button>
+          <Button
+            variant={route.name === 'targets' ? 'tonal' : 'text'}
+            aria-current={route.name === 'targets' ? 'page' : undefined}
+            onClick={() => go({ name: 'targets' })}
+          >
+            Targets
+          </Button>
+        </nav>
+      </TopAppBarActions>
       <AccountAction />
       {route.name === 'day' && (
-        <>
-          <DayScreen
-            log={log}
-            targets={targets}
-            now={now}
-            day={route.day}
-            onDayChange={(day) => go({ name: 'day', day })}
-            onOpenEntry={(entry) => go({ name: 'entry', day: route.day, id: entry.id })}
-            onLog={(day) => go({ name: 'log', day })}
-          />
-          <nav class="screen home-links">
-            <Button variant="tonal" onClick={() => go({ name: 'foods' })}>
-              Foods
-            </Button>
-            <Button variant="tonal" onClick={() => go({ name: 'targets' })}>
-              Targets
-            </Button>
-          </nav>
-        </>
+        <DayScreen
+          log={log}
+          targets={targets}
+          now={now}
+          day={route.day}
+          onDayChange={(day) => go({ name: 'day', day })}
+          onOpenEntry={(entry) => go({ name: 'entry', day: route.day, id: entry.id })}
+          onLog={(day) => go({ name: 'log', day })}
+        />
       )}
       {route.name === 'log' && (
         <LogScreen

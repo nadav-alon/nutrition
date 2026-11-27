@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/preact'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nutrition } from 'data-platform'
 import { App, type AppPorts } from './App.tsx'
@@ -19,11 +19,32 @@ beforeEach(() => {
 })
 
 describe('App routes', () => {
-  it('opens on today\'s Day, with Foods and Targets reachable from it', () => {
+  it("opens on today's Day", () => {
     render(<App {...ports()} />)
     expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Foods' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Targets' })).toBeInTheDocument()
+  })
+
+  it('puts Foods and Targets in the header navigation only, leaving Log the one action in the Day', () => {
+    render(<App {...ports()} />)
+    const nav = screen.getByRole('navigation', { name: 'Main' })
+    expect(within(nav).getByRole('button', { name: 'Foods' })).toBeInTheDocument()
+    expect(within(nav).getByRole('button', { name: 'Targets' })).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Foods' })).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: 'Targets' })).toHaveLength(1)
+    const day = screen.getByRole('heading', { name: 'Today' }).closest('section')!
+    expect(within(day).getByRole('button', { name: 'Log' })).toBeInTheDocument()
+  })
+
+  it('keeps the navigation on every screen and marks the current one', async () => {
+    render(<App {...ports()} />)
+    const nav = () => screen.getByRole('navigation', { name: 'Main' })
+    fireEvent.click(within(nav()).getByRole('button', { name: 'Foods' }))
+    await screen.findByRole('button', { name: 'Back' })
+    expect(within(nav()).getByRole('button', { name: 'Foods' })).toHaveAttribute('aria-current', 'page')
+    fireEvent.click(within(nav()).getByRole('button', { name: 'Targets' }))
+    expect(location.hash).toBe('#/targets')
+    expect(within(nav()).getByRole('button', { name: 'Targets' })).toHaveAttribute('aria-current', 'page')
+    expect(within(nav()).getByRole('button', { name: 'Foods' })).not.toHaveAttribute('aria-current')
   })
 
   it('keeps the viewed Day in the URL, so a refresh stays on it', () => {
