@@ -5,7 +5,7 @@ import { manifest } from './pwa-manifest.ts'
 import { SEED } from './seed.ts'
 
 describe('theme', () => {
-  it('takes Open Color blue 8 as its seed, distinct from home-catalogue\'s orange', () => {
+  it('takes Open Color blue 8 as its seed', () => {
     expect(SEED).toBe('#1971c2')
   })
 
