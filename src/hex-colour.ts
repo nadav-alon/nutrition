@@ -1,6 +1,6 @@
 declare const hexColourBrand: unique symbol
 
-/** A six-digit hex colour such as `#e8590c`. */
+/** A six-digit hex colour such as `#123abc`. */
 export type HexColour = string & { readonly [hexColourBrand]: true }
 
 /** The guard: whether `value` is `#` and six lowercase hex digits. */
