@@ -69,6 +69,7 @@ function MacroBar({ macro: { label, unit }, eaten: rawEaten, target }: MacroBarP
       aria-valuemin={0}
       aria-valuenow={eaten}
       aria-valuemax={target}
+      aria-valuetext={text}
     >
       <span>{text}</span>
       {target === undefined || target <= 0 ? null : (

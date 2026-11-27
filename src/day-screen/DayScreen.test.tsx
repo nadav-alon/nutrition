@@ -119,6 +119,10 @@ describe('DayScreen Log action', () => {
 
 describe('DayScreen targets', () => {
   const bar = (name: string) => screen.getByRole('meter', { name })
+  const expectMeterReads = (name: string, text: string) => {
+    expect(within(bar(name)).getByText(text)).toBeInTheDocument()
+    expect(bar(name)).toHaveAttribute('aria-valuetext', text)
+  }
 
   it('shows eaten and remaining against each Target', async () => {
     const log = fakeLogStore()
@@ -129,10 +133,10 @@ describe('DayScreen targets', () => {
     renderScreen({ log, targets })
     expect(bar('Calories')).toHaveAttribute('aria-valuenow', '1000')
     expect(bar('Calories')).toHaveAttribute('aria-valuemax', '2000')
-    expect(within(bar('Calories')).getByText('1000 kcal eaten · 1000 kcal left')).toBeInTheDocument()
-    expect(within(bar('Protein')).getByText('20 g eaten · 30 g left')).toBeInTheDocument()
-    expect(within(bar('Carbs')).getByText('40 g eaten · 60 g left')).toBeInTheDocument()
-    expect(within(bar('Fat')).getByText('10 g eaten · 10 g left')).toBeInTheDocument()
+    expectMeterReads('Calories', '1000 kcal eaten · 1000 kcal left')
+    expectMeterReads('Protein', '20 g eaten · 30 g left')
+    expectMeterReads('Carbs', '40 g eaten · 60 g left')
+    expectMeterReads('Fat', '10 g eaten · 10 g left')
   })
 
   it('shows only the total for a macro with no Target', async () => {
@@ -141,7 +145,7 @@ describe('DayScreen targets', () => {
     const targets = fakeTargetsPort()
     await targets.write({ kcal: kcal(2000) })
     renderScreen({ log, targets })
-    expect(within(bar('Protein')).getByText('10 g eaten')).toBeInTheDocument()
+    expectMeterReads('Protein', '10 g eaten')
     expect(bar('Protein')).not.toHaveAttribute('aria-valuemax')
   })
 
@@ -149,7 +153,7 @@ describe('DayScreen targets', () => {
     const log = fakeLogStore()
     await log.create(entry('Toast', 'breakfast', 8, 400))
     renderScreen({ log })
-    expect(within(bar('Calories')).getByText('400 kcal eaten')).toBeInTheDocument()
+    expectMeterReads('Calories', '400 kcal eaten')
   })
 
   it('shows an over-target macro as over', async () => {
@@ -158,7 +162,7 @@ describe('DayScreen targets', () => {
     const targets = fakeTargetsPort()
     await targets.write({ kcal: kcal(2000) })
     renderScreen({ log, targets })
-    expect(within(bar('Calories')).getByText('2500 kcal eaten · 500 kcal over')).toBeInTheDocument()
+    expectMeterReads('Calories', '2500 kcal eaten · 500 kcal over')
     expect(bar('Calories')).toHaveClass('over')
     expect(bar('Protein')).not.toHaveClass('over')
   })
