@@ -7,6 +7,7 @@ import ChevronLeft from '~icons/material-symbols/chevron-left'
 import ChevronRight from '~icons/material-symbols/chevron-right'
 import { dayOf, nextDay, previousDay, type Day } from '../day.ts'
 import type { LogEntry, LogStore } from '../log/log-store.ts'
+import { hashFor } from '../routes.ts'
 import { useDayEntries } from '../log/use-day-entries.ts'
 import type { Targets, TargetsPort } from '../targets/targets-port.ts'
 
@@ -84,11 +85,16 @@ function MacroBar({ macro: { label, unit }, eaten: rawEaten, target }: MacroBarP
 export function DayScreen({ log, targets, now, day: viewed, onDayChange, onOpenEntry, onLog }: DayScreenProps) {
   const today = dayOf(now)
   const dayEntries = useDayEntries(log, viewed)
-  const [memberTargets, setMemberTargets] = useState<Targets | null>(null)
+  const [memberTargets, setMemberTargets] = useState<Targets | null | undefined>(undefined)
   const [targetsFailed, setTargetsFailed] = useState(false)
   useEffect(() => {
     return targets.subscribe(setMemberTargets, () => setTargetsFailed(true))
   }, [targets])
+  // `undefined` is still loading; a Member with every Target unset has none either.
+  const noTargets =
+    !targetsFailed &&
+    memberTargets !== undefined &&
+    (memberTargets === null || Object.values(memberTargets).every((value) => value === undefined))
   const entries = dayEntries.status === 'loaded' ? dayEntries.entries : null
   const total = (key: MacroKey) => (entries ?? []).reduce((sum, entry) => sum + entry.nutrition[key], 0)
   return (
@@ -104,6 +110,11 @@ export function DayScreen({ log, targets, now, day: viewed, onDayChange, onOpenE
         />
       </header>
       {targetsFailed ? <p>Targets unavailable.</p> : null}
+      {noTargets ? (
+        <p>
+          No Targets set. <a href={hashFor({ name: 'targets' }, today)}>Set Targets</a>
+        </p>
+      ) : null}
       {dayEntries.status === 'error' ? (
         <p>Log unavailable.</p>
       ) : entries === null ? (

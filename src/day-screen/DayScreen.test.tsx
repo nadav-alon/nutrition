@@ -118,6 +118,18 @@ describe('DayScreen Log action', () => {
   })
 })
 
+describe('DayScreen without Targets', () => {
+  it('says no Targets are set and links to the Targets screen, until Targets exist', async () => {
+    const targets = fakeTargetsPort()
+    renderScreen({ targets })
+    expect(screen.getByText(/No Targets set/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Set Targets' })).toHaveAttribute('href', '#/targets')
+    await act(() => targets.write({ kcal: kcal(2000) }))
+    expect(screen.queryByText(/No Targets set/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Set Targets' })).not.toBeInTheDocument()
+  })
+})
+
 describe('DayScreen targets', () => {
   const bar = (name: string) => screen.getByRole('meter', { name })
   const expectMeterReads = (name: string, figures: string) => {
