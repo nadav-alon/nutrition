@@ -5,7 +5,7 @@ import { IconButton } from 'household-ui/ui/IconButton.tsx'
 import { ListRow } from 'household-ui/ui/ListRow.tsx'
 import ChevronLeft from '~icons/material-symbols/chevron-left'
 import ChevronRight from '~icons/material-symbols/chevron-right'
-import { dayOf, nextDay, previousDay, type Day } from '../day.ts'
+import { dayLabel, dayOf, nextDay, previousDay, type Day } from '../day.ts'
 import type { LogEntry, LogStore } from '../log/log-store.ts'
 import { useDayEntries } from '../log/use-day-entries.ts'
 import type { Targets, TargetsPort } from '../targets/targets-port.ts'
@@ -107,7 +107,7 @@ export function DayScreen({ log, targets, now, day: viewed, onDayChange, onOpenE
     <section class="screen day-screen">
       <header class="day-nav">
         <IconButton symbol={ChevronLeft} label="Previous day" onClick={() => onDayChange(previousDay(viewed))} />
-        <h2>{viewed === today ? 'Today' : viewed}</h2>
+        <h2>{dayLabel(viewed, now)}</h2>
         <IconButton
           symbol={ChevronRight}
           label="Next day"

@@ -90,3 +90,21 @@ export function defaultEatenTime(value: Day, now: Date): Date {
   if (value === dayOf(now)) return new Date(now)
   return localMidnight(value, 0, now)
 }
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const
+
+/**
+ * How a Member reads `value` as the header of the Day screen, relative to `now`: `Today`,
+ * `Yesterday`, or a short label like `Thu 26 Nov`, with the year (`Thu 26 Nov 2025`) only when it
+ * isn't the current one.
+ */
+export function dayLabel(value: Day, now: Date): string {
+  const today = dayOf(now)
+  if (value === today) return 'Today'
+  if (value === previousDay(today)) return 'Yesterday'
+  const { year, month, dayOfMonth } = parts(value)!
+  const weekday = WEEKDAYS[localMidnight(value).getDay()]
+  const withoutYear = `${weekday} ${dayOfMonth} ${MONTHS[month - 1]}`
+  return year === now.getFullYear() ? withoutYear : `${withoutYear} ${year}`
+}
