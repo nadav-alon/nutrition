@@ -1,19 +1,24 @@
-import { join } from 'node:path'
 import type { ManifestOptions } from 'vite-plugin-pwa'
 import { SEED } from './seed.ts'
 import { themeRole } from './theme-role.ts'
 import { APP_NAME } from './app-name.ts'
 import { iconSrc } from './icon-src.ts'
 
-const PUBLIC_DIR = join(import.meta.dirname, '..', 'public')
-
 const sizes = [192, 512]
 
-const icon = (size: number, purpose?: 'maskable') => ({
-  src: iconSrc(`pwa-${purpose ? `${purpose}-` : ''}${size}x${size}.png`, PUBLIC_DIR),
+const bareIcon = (size: number, purpose?: 'maskable') => ({
+  file: `pwa-${purpose ? `${purpose}-` : ''}${size}x${size}.png`,
   sizes: `${size}x${size}`,
   type: 'image/png',
   ...(purpose && { purpose }),
+})
+
+/** The icons by bare file name, unversioned: what the icon generator writes, so it needs no file to exist yet. */
+export const iconFiles = [...sizes.map((size) => bareIcon(size)), ...sizes.map((size) => bareIcon(size, 'maskable'))]
+
+const versioned = ({ file, ...rest }: (typeof iconFiles)[number]) => ({
+  src: iconSrc(file),
+  ...rest,
 })
 
 export const manifest: Partial<ManifestOptions> = {
@@ -24,5 +29,5 @@ export const manifest: Partial<ManifestOptions> = {
   background_color: themeRole('background'),
   display: 'standalone',
   start_url: '.',
-  icons: [...sizes.map((size) => icon(size)), ...sizes.map((size) => icon(size, 'maskable'))],
+  icons: iconFiles.map(versioned),
 }

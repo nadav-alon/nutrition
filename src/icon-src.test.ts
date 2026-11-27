@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { iconFile, iconSrc } from './icon-src.ts'
+import { iconFile, iconPath, iconSrc, isIconSrc } from './icon-src.ts'
 
 describe('iconSrc', () => {
   const dir = mkdtempSync(join(tmpdir(), 'icon-src-'))
@@ -22,6 +22,14 @@ describe('iconSrc', () => {
   })
 
   it('recovers the file name from a versioned URL', () => {
-    expect(iconFile('a.png?v=ba7816bf')).toBe('a.png')
+    const src = iconSrc('a.png', dir)
+    expect(isIconSrc(src)).toBe(true)
+    expect(iconFile(src)).toBe('a.png')
+    expect(iconPath(src, dir)).toBe(join(dir, 'a.png'))
+  })
+
+  it('tells a versioned URL from a bare file name', () => {
+    expect(isIconSrc('a.png')).toBe(false)
+    expect(isIconSrc('a.png?v=ba7816bf')).toBe(true)
   })
 })

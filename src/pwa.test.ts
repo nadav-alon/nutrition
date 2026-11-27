@@ -3,9 +3,12 @@ import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { manifest } from './pwa-manifest.ts'
+import { iconFiles, manifest } from './pwa-manifest.ts'
 import { SEED } from './seed.ts'
-import { iconFile, iconSrc } from './icon-src.ts'
+import { createHash } from 'node:crypto'
+import { iconFile, iconPath, isIconSrc, parseIconSrc } from './icon-src.ts'
+
+const sha8 = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex').slice(0, 8)
 
 describe('PWA manifest', () => {
   it('is installable: standalone with a 192 and a 512 icon that exist', () => {
@@ -14,7 +17,8 @@ describe('PWA manifest', () => {
     expect(sizes).toContain('192x192')
     expect(sizes).toContain('512x512')
     for (const icon of manifest.icons!) {
-      expect(existsSync(join('public', iconFile(icon.src)))).toBe(true)
+      expect(isIconSrc(icon.src)).toBe(true)
+      expect(existsSync(iconPath(parseIconSrc(icon.src)))).toBe(true)
     }
   })
 })
@@ -25,18 +29,25 @@ describe('production build', () => {
     execFileSync('npx', ['vite', 'build', '--outDir', outDir, '--emptyOutDir'], { stdio: 'pipe' })
     const html = readFileSync(join(outDir, 'index.html'), 'utf8')
     expect(html).toContain('/nutrition/assets/')
-    expect(html).toContain(`/nutrition/${iconSrc('pwa-192x192.png', 'public')}`)
+    const built = JSON.parse(readFileSync(join(outDir, 'manifest.webmanifest'), 'utf8')) as { icons: { src: string }[] }
+    expect(built.icons.length).toBe(manifest.icons!.length)
+    for (const { src } of built.icons) {
+      expect(src, 'the built manifest URL is the sha256 of the file, computed here').toBe(`${src.split('?')[0]}?v=${sha8(readFileSync(join('public', src.split('?')[0]!)))}`)
+    }
+    expect(html).toContain(`/nutrition/${built.icons.find((i) => i.src.startsWith('pwa-192x192.png'))!.src}`)
     expect(html).toContain(`<meta name="theme-color" content="${SEED}">`)
     expect(readdirSync(outDir)).toContain('manifest.webmanifest')
     const sw = readFileSync(join(outDir, 'sw.js'), 'utf8')
     expect(sw).toContain('index.html')
+    for (const icon of iconFiles) expect(sw, `${icon.file} precached`).toMatch(new RegExp(`"?url"?:\\s*"${icon.file}"`))
+    expect(sw).toMatch(/"?ignoreURLParametersMatching"?:\s*\[[^\]]*\/\^v\$\//)
   }, 60_000)
 })
 
 describe('favicon', () => {
   it('is the 192 manifest icon, which draws the apple', () => {
     const href = readFileSync('index.html', 'utf8').match(/<link rel="icon"[^>]*href="\/([^"]+)"/)?.[1]
-    expect(href).toBe(iconFile(manifest.icons!.find((i) => i.sizes === '192x192' && !i.purpose)!.src))
+    expect(href).toBe(iconFile(parseIconSrc(manifest.icons!.find((i) => i.sizes === '192x192' && !i.purpose)!.src)))
   })
 })
 
@@ -57,7 +68,7 @@ describe('deploy workflow', () => {
 describe('manifest icon URLs', () => {
   it('carry a version taken from the icon file content', () => {
     for (const icon of manifest.icons!) {
-      expect(icon.src).toBe(iconSrc(iconFile(icon.src), 'public'))
+      expect(icon.src).toBe(`${iconFile(parseIconSrc(icon.src))}?v=${sha8(readFileSync(iconPath(parseIconSrc(icon.src))))}`)
       expect(icon.src).toMatch(/\.png\?v=[0-9a-f]{8}$/)
     }
   })
