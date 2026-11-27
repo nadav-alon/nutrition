@@ -49,3 +49,10 @@ main.screen.sign-in .ui-button {
 .macro-bar.over progress {
   accent-color: var(--md-sys-color-error);
 }
+
+/* Foods and Targets in the top app bar, styled as navigation beside the account action. */
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--md-sys-spacing-1);
+}

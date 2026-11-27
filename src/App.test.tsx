@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/preact'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nutrition } from 'data-platform'
 import { App, type AppPorts } from './App.tsx'
@@ -24,6 +24,16 @@ describe('App routes', () => {
     expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Foods' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Targets' })).toBeInTheDocument()
+  })
+
+  it('puts Foods and Targets in the header navigation, leaving Log the one action in the Day', () => {
+    render(<App {...ports()} />)
+    const nav = within(document.querySelector<HTMLElement>('.shell-top-bar')!).getByRole('navigation')
+    expect(within(nav).getByRole('button', { name: 'Foods' })).toBeInTheDocument()
+    expect(within(nav).getByRole('button', { name: 'Targets' })).toBeInTheDocument()
+    const day = screen.getByRole('heading', { name: 'Today' }).closest('section')!
+    expect(within(day).queryByRole('button', { name: 'Foods' })).toBeNull()
+    expect(within(day).queryByRole('button', { name: 'Targets' })).toBeNull()
   })
 
   it('keeps the viewed Day in the URL, so a refresh stays on it', () => {

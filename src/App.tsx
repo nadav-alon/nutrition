@@ -1,4 +1,4 @@
-import { TopAppBar } from 'household-ui/shell/TopAppBar.tsx'
+import { TopAppBar, TopAppBarActions } from 'household-ui/shell/TopAppBar.tsx'
 import { Button } from 'household-ui/ui/Button.tsx'
 import type { nutrition } from 'data-platform'
 import { AccountAction } from './gate/account.tsx'
@@ -43,14 +43,16 @@ export function App({ log, foods, targets }: AppPorts) {
             onOpenEntry={(entry) => go({ name: 'entry', day: route.day, id: entry.id })}
             onLog={(day) => go({ name: 'log', day })}
           />
-          <nav class="screen home-links">
-            <Button variant="tonal" onClick={() => go({ name: 'foods' })}>
-              Foods
-            </Button>
-            <Button variant="tonal" onClick={() => go({ name: 'targets' })}>
-              Targets
-            </Button>
-          </nav>
+          <TopAppBarActions>
+            <nav class="app-nav" aria-label="Main">
+              <Button variant="text" onClick={() => go({ name: 'foods' })}>
+                Foods
+              </Button>
+              <Button variant="text" onClick={() => go({ name: 'targets' })}>
+                Targets
+              </Button>
+            </nav>
+          </TopAppBarActions>
         </>
       )}
       {route.name === 'log' && (
