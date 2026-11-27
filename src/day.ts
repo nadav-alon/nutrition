@@ -96,7 +96,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 /**
  * How a Member reads `value` as the header of the Day screen, relative to `now`: `Today`,
- * `Yesterday`, or a short date like `Thu 26 Nov`, with the year (`Thu 26 Nov 2025`) only when it
+ * `Yesterday`, or a short label like `Thu 26 Nov`, with the year (`Thu 26 Nov 2025`) only when it
  * isn't the current one.
  */
 export function dayLabel(value: Day, now: Date): string {
@@ -104,7 +104,7 @@ export function dayLabel(value: Day, now: Date): string {
   if (value === today) return 'Today'
   if (value === previousDay(today)) return 'Yesterday'
   const { year, month, dayOfMonth } = parts(value)!
-  const weekday = WEEKDAYS[new Date(Date.UTC(year, month - 1, dayOfMonth)).getUTCDay()]
-  const short = `${weekday} ${dayOfMonth} ${MONTHS[month - 1]}`
-  return year === now.getFullYear() ? short : `${short} ${year}`
+  const weekday = WEEKDAYS[localMidnight(value).getDay()]
+  const withoutYear = `${weekday} ${dayOfMonth} ${MONTHS[month - 1]}`
+  return year === now.getFullYear() ? withoutYear : `${withoutYear} ${year}`
 }
