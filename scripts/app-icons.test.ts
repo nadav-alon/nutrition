@@ -65,7 +65,7 @@ describe('PWA icons', () => {
 
   it('draw the glyph in the on-primary colour over the seed', () => {
     const [r, , b] = Buffer.from(SEED.slice(1), 'hex')
-    expect(r).toBeGreaterThan(b!)
+    expect(b).toBeGreaterThan(r!)
     for (const icon of manifest.icons!) {
       const seen = colours(readFileSync(`public/${icon.src}`))
       expect(seen, icon.src).toContain(seedPixel)

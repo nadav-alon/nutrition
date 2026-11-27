@@ -5,6 +5,10 @@ import { manifest } from './pwa-manifest.ts'
 import { SEED } from './seed.ts'
 
 describe('theme', () => {
+  it('takes Open Color blue 8 as its seed, distinct from home-catalogue\'s orange', () => {
+    expect(SEED).toBe('#1971c2')
+  })
+
   it('has theme.css generated from the seed, following the system light/dark setting', () => {
     const css = readFileSync('src/theme.css', 'utf8')
     expect(css).toBe(colourRolesCss(seedColour(SEED)))

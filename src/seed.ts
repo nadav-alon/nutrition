@@ -1,4 +1,4 @@
 import { hexColour } from './hex-colour.ts'
 
 /** The accent the whole app is themed from: `theme.css` is generated from it (`npm run theme`) and the PWA manifest's theme colour is it. */
-export const SEED = hexColour('#e8590c')
+export const SEED = hexColour('#1971c2')
