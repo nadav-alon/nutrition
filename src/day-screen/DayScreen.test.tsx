@@ -35,6 +35,12 @@ function renderScreen(props: Partial<DayScreenProps> = {}) {
 }
 
 describe('DayScreen day navigation', () => {
+  it('gives the Previous day and Next day buttons a tooltip equal to their label', () => {
+    renderScreen()
+    expect(screen.getByRole('button', { name: 'Previous day' })).toHaveAttribute('title', 'Previous day')
+    expect(screen.getByRole('button', { name: 'Next day' })).toHaveAttribute('title', 'Next day')
+  })
+
   it('shows today by default, with next disabled', () => {
     renderScreen()
     expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument()
