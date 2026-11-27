@@ -163,6 +163,18 @@ describe('the account link check', () => {
   })
 })
 
+describe('a grant without a usable expires_in', () => {
+  it('falls back to an hour', async () => {
+    const { health, advance } = setup(({ callback }) => callback({ access_token: 'tok' }))
+    await health.connect()
+    expect(health.isConnected()).toBe(true)
+    advance(3_599_999)
+    expect(health.isConnected()).toBe(true)
+    advance(1)
+    expect(health.isConnected()).toBe(false)
+  })
+})
+
 describe('remove', () => {
   it('posts the names to batchDelete', async () => {
     const { health, fetchStub } = setup()
@@ -185,6 +197,39 @@ describe('remove', () => {
   it('rejects as not connected without a live token', async () => {
     const { health } = setup()
     await expect(health.remove([dataPointName(POINT)])).rejects.toBeInstanceOf(NotConnectedError)
+  })
+})
+
+describe('malformed successes', () => {
+  const afterIdentity = (response: () => Response) => async (url: Parameters<typeof fetch>[0]) =>
+    String(url).endsWith('/identity') ? json({}) : response()
+
+  it('treats an empty batchDelete reply as success', async () => {
+    const { health, fetchStub } = setup()
+    fetchStub.mockImplementation(afterIdentity(() => new Response('', { status: 200 })))
+    await health.connect()
+    await expect(health.remove([dataPointName(POINT)])).resolves.toBeUndefined()
+  })
+
+  it('ignores a non-JSON batchDelete reply', async () => {
+    const { health, fetchStub } = setup()
+    fetchStub.mockImplementation(afterIdentity(() => new Response('ok', { status: 200 })))
+    await health.connect()
+    await expect(health.remove([dataPointName(POINT)])).resolves.toBeUndefined()
+  })
+
+  it('types a non-JSON create reply', async () => {
+    const { health, fetchStub } = setup()
+    fetchStub.mockImplementation(afterIdentity(() => new Response('<html>', { status: 200 })))
+    await health.connect()
+    await expect(health.create(entry)).rejects.toBeInstanceOf(HealthRequestError)
+  })
+
+  it('types a data point name that is not one', async () => {
+    const { health, fetchStub } = setup()
+    fetchStub.mockImplementation(afterIdentity(() => json({ name: 'nonsense' })))
+    await health.connect()
+    await expect(health.create(entry)).rejects.toBeInstanceOf(HealthRequestError)
   })
 })
 

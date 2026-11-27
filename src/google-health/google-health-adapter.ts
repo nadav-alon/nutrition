@@ -1,4 +1,4 @@
-import { HealthRequestError, NotConnectedError, NotLinkedError, dataPointName } from './google-health.ts'
+import { HealthRequestError, NotConnectedError, NotLinkedError, isDataPointName } from './google-health.ts'
 import type { GoogleHealth, HealthEntry } from './google-health.ts'
 import type { GisOauth2 } from './gis.ts'
 
@@ -10,6 +10,8 @@ const API = 'https://health.googleapis.com/v4'
 const DATA_POINTS = `${API}/users/me/dataTypes/nutrition-log/dataPoints`
 const IDENTITY = `${API}/users/me/identity`
 const MINUTE_MS = 60_000
+/** Google tokens last about an hour; used when the grant does not say. */
+const DEFAULT_TOKEN_SECONDS = 3600
 
 export interface GoogleHealthDeps {
   readonly gis: GisOauth2
@@ -47,6 +49,16 @@ function toDataPoint(entry: HealthEntry) {
   }
 }
 
+/** Whether an error body names ACCOUNT_NOT_LINKED in `error.details[].reason`. */
+function reportsAccountNotLinked(text: string): boolean {
+  try {
+    const details = (JSON.parse(text) as { error?: { details?: unknown } }).error?.details
+    return Array.isArray(details) && details.some((d: { reason?: unknown } | null) => d?.reason === 'ACCOUNT_NOT_LINKED')
+  } catch {
+    return false
+  }
+}
+
 /** The `GoogleHealth` adapter over the Google Health REST API and the GIS token client. */
 export function googleHealth(deps: GoogleHealthDeps): GoogleHealth {
   let token: Token | undefined
@@ -55,8 +67,8 @@ export function googleHealth(deps: GoogleHealthDeps): GoogleHealth {
 
   const live = () => (token && deps.now().getTime() < token.expiresAt ? token : undefined)
 
-  /** Sends an authorised JSON request and returns the parsed body; failures are typed. */
-  async function send(url: string, method: 'GET' | 'POST', body?: unknown): Promise<unknown> {
+  /** Sends an authorised JSON request and returns the response text; failures are typed. */
+  async function send(url: string, method: 'GET' | 'POST', body?: unknown): Promise<string> {
     const current = live()
     if (!current) throw new NotConnectedError()
     if (url !== IDENTITY && linkedFor !== current.value) {
@@ -78,14 +90,24 @@ export function googleHealth(deps: GoogleHealthDeps): GoogleHealth {
     }
     if (!response.ok) {
       const text = await response.text()
-      if (text.includes('ACCOUNT_NOT_LINKED')) throw new NotLinkedError()
+      if (reportsAccountNotLinked(text)) throw new NotLinkedError()
       if (response.status === 401) {
         token = undefined
         throw new NotConnectedError('Google Health rejected the token')
       }
       throw new HealthRequestError(response.status, text)
     }
-    return response.json()
+    return response.text()
+  }
+
+  /** Parses a success body as JSON; an empty body is `undefined`, an unparseable one a typed failure. */
+  function parseBody(text: string): unknown {
+    if (text.trim() === '') return undefined
+    try {
+      return JSON.parse(text)
+    } catch {
+      throw new HealthRequestError(undefined, 'Google Health returned a response that is not JSON')
+    }
   }
 
   return {
@@ -100,7 +122,8 @@ export function googleHealth(deps: GoogleHealthDeps): GoogleHealth {
               reject(new NotConnectedError(response.error_description ?? response.error ?? 'No token granted'))
               return
             }
-            const seconds = Number(response.expires_in)
+            const parsed = Number(response.expires_in)
+            const seconds = Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_TOKEN_SECONDS
             token = { value: response.access_token, expiresAt: deps.now().getTime() + seconds * 1000 }
             resolve()
           },
@@ -111,14 +134,15 @@ export function googleHealth(deps: GoogleHealthDeps): GoogleHealth {
     },
     isConnected: () => live() !== undefined,
     async create(entry) {
-      const body = await send(`${DATA_POINTS}`, 'POST', toDataPoint(entry))
+      const body = parseBody(await send(DATA_POINTS, 'POST', toDataPoint(entry)))
       const name = (body as { name?: unknown } | undefined)?.name
       if (typeof name !== 'string') throw new HealthRequestError(undefined, 'Google Health returned no data point name')
-      return dataPointName(name)
+      if (!isDataPointName(name)) throw new HealthRequestError(undefined, `Google Health returned an invalid data point name: ${name}`)
+      return name
     },
     async remove(names) {
       if (names.length === 0) return
-      // Plain DELETE on a data point returns 404; the API deletes through a batch call.
+      // Plain DELETE on a data point returns 404; the API deletes through a batch call. Its reply body is ignored.
       await send(`${DATA_POINTS}:batchDelete`, 'POST', { names })
     },
   }
