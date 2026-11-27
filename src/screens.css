@@ -56,3 +56,16 @@ main.screen.sign-in .ui-button {
   align-items: center;
   gap: var(--md-sys-spacing-1);
 }
+
+/* The Day screen's header: previous day, the Day centred between, next day, on one row. */
+.day-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--md-sys-spacing-2);
+}
+
+.day-nav h2 {
+  flex: 1;
+  margin: 0;
+  text-align: center;
+}
