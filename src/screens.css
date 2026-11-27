@@ -61,7 +61,6 @@ main.screen.sign-in .ui-button {
 .day-nav {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--md-sys-spacing-2);
 }
 
