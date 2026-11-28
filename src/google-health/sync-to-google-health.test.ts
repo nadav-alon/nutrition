@@ -68,9 +68,29 @@ describe('syncToGoogleHealth', () => {
     const stopped = await syncToGoogleHealth(logStore, failingSecond)
     expect(stopped).toEqual({ status: 'failed', pushed: 1, queued: 2, error })
     expect(health.created).toHaveLength(1)
-    expect((await logStore.unsynced()).map(({ work }) => work)).toEqual(['create', 'create'])
+    expect((await logStore.unsynced()).map(({ work, entry }) => [work, entry.eatenAt])).toEqual([
+      ['create', at(11)],
+      ['create', at(12)],
+    ])
 
     expect(await syncToGoogleHealth(logStore, health)).toEqual({ status: 'synced', pushed: 2, queued: 0 })
     expect(health.created).toHaveLength(3)
+  })
+
+  it('keeps an entry queued when removing its data point fails, and retries it on the next run', async () => {
+    const logStore = fakeLogStore()
+    const health = fakeGoogleHealth({ connected: true })
+    const id = await logStore.create(schnitzel)
+    await syncToGoogleHealth(logStore, health)
+    await logStore.softDelete(id)
+    const error = new HealthRequestError(500, 'Boom')
+    health.fail(error)
+
+    expect(await syncToGoogleHealth(logStore, health)).toEqual({ status: 'failed', pushed: 0, queued: 1, error })
+    expect(health.created).toHaveLength(1)
+    expect((await logStore.unsynced()).map(({ work }) => work)).toEqual(['remove'])
+
+    expect(await syncToGoogleHealth(logStore, health)).toEqual({ status: 'synced', pushed: 1, queued: 0 })
+    expect(health.created).toEqual([])
   })
 })
