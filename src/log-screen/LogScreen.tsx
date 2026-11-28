@@ -1,5 +1,5 @@
 import type { nutrition } from 'data-platform'
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { Button } from 'household-ui/ui/Button.tsx'
 import { ListRow } from 'household-ui/ui/ListRow.tsx'
 import { TextField } from 'household-ui/ui/TextField.tsx'
@@ -74,13 +74,34 @@ export function LogScreen({ log, foods, day, now, onDone, estimate }: LogScreenP
     }
   }, [log])
 
+  /** Whether the confirm or Quick Entry step has a history entry of its own, which system back pops. */
+  const stepEntry = useRef(false)
+  const finishing = useRef(false)
+  const enter = (next: Mode) => {
+    if (!stepEntry.current) {
+      history.pushState(history.state, '', location.href)
+      stepEntry.current = true
+    }
+    setMode(next)
+  }
+  useEffect(() => {
+    const onPop = () => {
+      if (!stepEntry.current) return
+      stepEntry.current = false
+      if (finishing.current) setTimeout(onDone)
+      else setMode({ kind: 'choose' })
+    }
+    addEventListener('popstate', onPop)
+    return () => removeEventListener('popstate', onPop)
+  }, [onDone])
+
   const [query, setQuery] = useState('')
   const found = savedFoods.filter((food) => matches(food, query))
   const foodsById = new Map(savedFoods.map((food) => [food.id, food]))
   const offered: readonly Recent[] = recents(recentEntries, foodsById)
 
   const pickFood = (food: SavedFood) =>
-    setMode({
+    enter({
       kind: 'confirm',
       picked: {
         name: food.name,
@@ -91,7 +112,7 @@ export function LogScreen({ log, foods, day, now, onDone, estimate }: LogScreenP
     })
   const pickRecent = (recent: Recent) => {
     if (recent.kind === 'quick') {
-      setMode({
+      enter({
         kind: 'confirm',
         picked: {
           name: recent.name,
@@ -106,12 +127,18 @@ export function LogScreen({ log, foods, day, now, onDone, estimate }: LogScreenP
     if (food) pickFood(food)
   }
 
-  const backToChoosing = () => setMode({ kind: 'choose' })
+  const backToChoosing = () => (stepEntry.current ? history.back() : setMode({ kind: 'choose' }))
+  const saved = () => {
+    if (!stepEntry.current) return onDone()
+    // Drop the step's entry first, so the Day the Member leaves to is one entry back, not two.
+    finishing.current = true
+    history.back()
+  }
   if (mode.kind === 'confirm') {
-    return <ConfirmStep log={log} picked={mode.picked} day={day} now={now} onSaved={onDone} onBack={backToChoosing} />
+    return <ConfirmStep log={log} picked={mode.picked} day={day} now={now} onSaved={saved} onBack={backToChoosing} />
   }
   if (mode.kind === 'quick') {
-    return <QuickEntryForm log={log} foods={foods} day={day} now={now} estimate={estimate} onSaved={onDone} onBack={backToChoosing} initialName={mode.name} />
+    return <QuickEntryForm log={log} foods={foods} day={day} now={now} estimate={estimate} onSaved={saved} onBack={backToChoosing} initialName={mode.name} />
   }
   const searching = query.trim() !== ''
   return (
@@ -130,7 +157,7 @@ export function LogScreen({ log, foods, day, now, onDone, estimate }: LogScreenP
           {found.length === 0 ? (
             <>
               <p>No Foods match.</p>
-              <Button variant="tonal" onClick={() => setMode({ kind: 'quick', name: query.trim() })}>
+              <Button variant="tonal" onClick={() => enter({ kind: 'quick', name: query.trim() })}>
                 Quick entry for “{query.trim()}”
               </Button>
             </>
@@ -166,7 +193,7 @@ export function LogScreen({ log, foods, day, now, onDone, estimate }: LogScreenP
               </ul>
             </section>
           )}
-          <Button variant="tonal" onClick={() => setMode({ kind: 'quick' })}>
+          <Button variant="tonal" onClick={() => enter({ kind: 'quick' })}>
             Quick entry
           </Button>
         </>

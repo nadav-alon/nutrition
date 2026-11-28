@@ -82,6 +82,28 @@ describe('App routes', () => {
     expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument()
   })
 
+  it('returns to the Log list on system back from the Quick Entry step', async () => {
+    render(<App {...ports()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Log' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Quick entry' }))
+    history.back()
+    expect(await screen.findByLabelText('Search foods')).toBeInTheDocument()
+    expect(location.hash).toBe(`#/day/${today}/log`)
+  })
+
+  it('lands on the Day when a Quick Entry is saved from its own history entry', async () => {
+    render(<App {...ports()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Log' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Quick entry' }))
+    fireEvent.input(screen.getByLabelText('Name'), { target: { value: 'Apple' } })
+    for (const label of ['Calories (kcal)', 'Protein (g)', 'Carbs (g)', 'Fat (g)']) {
+      fireEvent.input(screen.getByLabelText(label), { target: { value: '1' } })
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(await screen.findByRole('heading', { name: 'Today' })).toBeInTheDocument()
+    expect(location.hash).toBe('')
+  })
+
   it("leaves a route meaning today when stepping forward reaches today's Day", () => {
     location.hash = `#/day/${previousDay(today)}`
     render(<App {...ports()} />)

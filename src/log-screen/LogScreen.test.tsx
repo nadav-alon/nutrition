@@ -250,7 +250,7 @@ describe('LogScreen confirm step', () => {
     const { log, onDone } = await setup()
     fireEvent.click(await screen.findByRole('button', { name: /Toast/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
-    expect(screen.getByRole('region', { name: 'Recents' })).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Recents' })).toBeInTheDocument()
     expect(onDone).not.toHaveBeenCalled()
     expect(entriesOn(log, TODAY).filter((entry) => entry.eatenAt.getTime() === NOW.getTime())).toEqual([])
   })
@@ -340,7 +340,7 @@ describe('LogScreen Quick Entry', () => {
     const { onDone } = await setup({ withRecents: false })
     fireEvent.click(screen.getByRole('button', { name: 'Quick entry' }))
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
-    expect(screen.getByLabelText('Search foods')).toBeInTheDocument()
+    expect(await screen.findByLabelText('Search foods')).toBeInTheDocument()
     expect(onDone).not.toHaveBeenCalled()
   })
 })
@@ -569,5 +569,35 @@ describe('LogScreen back arrow', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Schnitzel plate/ }))
     await screen.findByLabelText('Servings')
     expectOneBackInAppBar()
+  })
+})
+
+describe('LogScreen system back', () => {
+  it('returns from the confirm step to the Log list', async () => {
+    const { onDone } = await setup()
+    const depth = history.length
+    fireEvent.click(await screen.findByRole('button', { name: /Toast/ }))
+    expect(history.length).toBe(depth + 1)
+    history.back()
+    expect(await screen.findByLabelText('Search foods')).toBeInTheDocument()
+    expect(onDone).not.toHaveBeenCalled()
+  })
+
+  it('returns from the Quick Entry step to the Log list', async () => {
+    const { onDone } = await setup({ withRecents: false })
+    fireEvent.click(screen.getByRole('button', { name: 'Quick entry' }))
+    history.back()
+    expect(await screen.findByLabelText('Search foods')).toBeInTheDocument()
+    expect(onDone).not.toHaveBeenCalled()
+  })
+
+  it('leaves the history where it started once a step is saved', async () => {
+    const { onDone } = await setup()
+    fireEvent.click(await screen.findByRole('button', { name: /Toast/ }))
+    const depth = history.length
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    expect(history.length).toBe(depth)
+    expect(location.hash).toBe('')
   })
 })
