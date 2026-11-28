@@ -6,12 +6,13 @@ import { dayOf, previousDay } from './day.ts'
 import { fakeFoods } from './foods/fake-foods.ts'
 import { fakeLogStore } from './log/fake-log-store.ts'
 import { servings } from './log/servings.ts'
+import { fakeSettingsPort } from './settings/fake-settings-port.ts'
 import { fakeTargetsPort } from './targets/fake-targets-port.ts'
 
 const today = dayOf(new Date())
 
 function ports(): AppPorts {
-  return { log: fakeLogStore(), foods: fakeFoods(), targets: fakeTargetsPort() }
+  return { log: fakeLogStore(), foods: fakeFoods(), targets: fakeTargetsPort(), settings: fakeSettingsPort() }
 }
 
 beforeEach(() => {

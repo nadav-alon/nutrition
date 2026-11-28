@@ -4,9 +4,10 @@ import { App } from './App.tsx'
 import { MemberContext } from './gate/account.tsx'
 import { firestoreFoods } from './foods/firestore-foods.ts'
 import { firestoreLogStore } from './log/firestore-log-store.ts'
+import { firestoreSettingsPort } from './settings/firestore-settings-port.ts'
 import { firestoreTargetsPort } from './targets/firestore-targets-port.ts'
 
-/** The app on the Firestore adapters of the Log, Foods and Targets ports, for the signed-in Member. Renders nothing outside an AuthGate. */
+/** The app on the Firestore adapters of the Log, Foods, Settings and Targets ports, for the signed-in Member. Renders nothing outside an AuthGate. */
 export function FirestoreApp({ db }: { db: Firestore }) {
   const member = useContext(MemberContext)
   const uid = member?.uid
@@ -14,7 +15,7 @@ export function FirestoreApp({ db }: { db: Firestore }) {
     () =>
       uid === undefined
         ? null
-        : { log: firestoreLogStore(db, uid), foods: firestoreFoods(db), targets: firestoreTargetsPort(db, uid) },
+        : { log: firestoreLogStore(db, uid), foods: firestoreFoods(db), targets: firestoreTargetsPort(db, uid), settings: firestoreSettingsPort(db, uid) },
     [db, uid],
   )
   return ports === null ? null : <App {...ports} />

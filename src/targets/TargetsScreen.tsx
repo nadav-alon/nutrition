@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import { nutrition } from 'data-platform'
+import type { SettingsPort } from '../settings/settings-port.ts'
 import type { Targets, TargetsPort } from './targets-port.ts'
 import { Button } from 'household-ui/ui/Button.tsx'
 import { TextField } from 'household-ui/ui/TextField.tsx'
@@ -52,12 +53,14 @@ const discardPrompt = 'Discard your unsaved changes?'
 
 export type TargetsScreenProps = {
   port: TargetsPort
+  /** Where the Push to Google Health switch is read and written; it applies at once, apart from the Targets form. */
+  settings: SettingsPort
   /** Called when the Member leaves the screen; with unsaved changes, only once they agree to discard them. */
   onLeave: () => void
 }
 
 /** Sets the Member's daily Targets; a field left empty means no Target for that macro. */
-export function TargetsScreen({ port, onLeave }: TargetsScreenProps) {
+export function TargetsScreen({ port, settings, onLeave }: TargetsScreenProps) {
   const [draft, setDraft] = useState<Draft | null>(null)
   /** The fields as last loaded or saved, which unsaved changes are measured against. */
   const [saved, setSaved] = useState<Draft | null>(null)
@@ -66,6 +69,8 @@ export function TargetsScreen({ port, onLeave }: TargetsScreenProps) {
   const [badInput, setBadInput] = useState<BadInput>({})
   const [saving, setSaving] = useState(false)
   const [portError, setPortError] = useState<string | null>(null)
+  const [pushOn, setPushOn] = useState(false)
+  const [pushError, setPushError] = useState<string | null>(null)
 
   const hasBadInput = FIELDS.some(({ key }) => badInput[key] === true)
   const dirty = hasBadInput || (draft !== null && saved !== null && FIELDS.some(({ key }) => draft[key] !== saved[key]))
@@ -85,6 +90,25 @@ export function TargetsScreen({ port, onLeave }: TargetsScreenProps) {
       (error) => setPortError(error.message),
     )
   }, [port])
+
+  useEffect(() => {
+    return settings.watchGoogleHealthSync(
+      (on) => {
+        setPushError(null)
+        setPushOn(on)
+      },
+      (error) => setPushError(error.message),
+    )
+  }, [settings])
+
+  async function handlePushToggle(on: boolean) {
+    setPushError(null)
+    try {
+      await settings.setGoogleHealthSync(on)
+    } catch (error) {
+      setPushError(error instanceof Error ? error.message : 'Could not save the Google Health switch.')
+    }
+  }
 
   useEffect(() => {
     if (!dirty) return
@@ -152,6 +176,24 @@ export function TargetsScreen({ port, onLeave }: TargetsScreenProps) {
           Save
         </Button>
       </form>
+      <div class="stack">
+        <label>
+          <input
+            type="checkbox"
+            role="switch"
+            checked={pushOn}
+            aria-describedby="push-to-google-health-note"
+            onChange={(event) => {
+              // The checkbox follows the port, not the click, so a failed write leaves it as it was.
+              event.currentTarget.checked = pushOn
+              void handlePushToggle(!pushOn)
+            }}
+          />{' '}
+          Push to Google Health
+        </label>
+        <p id="push-to-google-health-note">Pushing needs a Google account linked in the Google Health app.</p>
+        {pushError !== null && <p role="alert">{pushError}</p>}
+      </div>
     </main>
   )
 }
