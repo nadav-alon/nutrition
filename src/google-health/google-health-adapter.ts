@@ -152,8 +152,12 @@ export function googleHealth(deps: GoogleHealthDeps): GoogleHealth {
     isConnected: () => liveToken() !== undefined,
     async create(entry) {
       await ensureLinked()
-      const body = parseBody(await send(DATA_POINTS, 'POST', toDataPoint(entry)))
-      const name = (body as { name?: unknown } | undefined)?.name
+      // Create answers with a long-running operation whose `response` is the created data point.
+      const operation = parseBody(await send(DATA_POINTS, 'POST', toDataPoint(entry))) as
+        | { done?: unknown; response?: { name?: unknown } | null }
+        | undefined
+      if (operation?.done !== true) throw new HealthRequestError(undefined, 'Google Health did not complete the create operation')
+      const name = operation.response?.name
       if (typeof name !== 'string') throw new HealthRequestError(undefined, 'Google Health returned no data point name')
       if (!isDataPointName(name)) throw new HealthRequestError(undefined, `Google Health returned an invalid data point name: ${name}`)
       return name

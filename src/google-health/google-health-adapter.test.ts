@@ -37,13 +37,31 @@ function setup(grant: Grant = grantToken()) {
   return { health, stub, fetchStub, advance: (ms: number) => (clock = new Date(clock.getTime() + ms)) }
 }
 
+const IDENTITY = { name: 'users/me/identity', legacyUserId: 'legacy', healthUserId: '123' }
+
+/** The operation Google answers a create with: the data point rides in `response`. */
+const created = (name: string) =>
+  json({
+    done: true,
+    response: { '@type': 'type.googleapis.com/google.devicesandservices.health.v4.DataPoint', name, dataSource: {}, nutritionLog: {} },
+  })
+
+const BATCH_DELETED = {
+  done: true,
+  response: {
+    '@type': 'type.googleapis.com/google.devicesandservices.health.v4.BatchDeleteDataPointsResponse',
+    dataPoints: [{ name: 'users/123/dataTypes/nutrition-log/dataPoints/abc' }],
+  },
+}
+
 let issued = 0
 googleHealthContract('googleHealth', () => {
   const { health, fetchStub } = setup()
   fetchStub.mockImplementation(async (url) => {
     const text = String(url)
-    if (text.endsWith('/identity') || text.endsWith(':batchDelete')) return json({})
-    return json({ name: `users/me/dataTypes/nutrition-log/dataPoints/p-${issued++}` })
+    if (text.endsWith('/identity')) return json(IDENTITY)
+    if (text.endsWith(':batchDelete')) return json(BATCH_DELETED)
+    return created(`users/123/dataTypes/nutrition-log/dataPoints/p-${issued++}`)
   })
   return { health, requests: () => fetchStub.mock.calls.length }
 })
@@ -101,7 +119,7 @@ describe('create', () => {
 
   const offsets = async (eatenAt: Date) => {
     const { health, fetchStub } = setup()
-    fetchStub.mockImplementation(async (url) => (String(url).endsWith('/identity') ? json({}) : json({ name: POINT })))
+    fetchStub.mockImplementation(async (url) => (String(url).endsWith('/identity') ? json({}) : created(POINT)))
     await health.connect()
     await health.create({ ...entry, eatenAt })
     const { interval } = JSON.parse(fetchStub.mock.calls[1]![1]?.body as string).nutritionLog
@@ -122,7 +140,7 @@ describe('create', () => {
   it('posts the entry mapped onto a nutrition-log data point and returns its name', async () => {
     vi.stubEnv('TZ', 'Asia/Jerusalem')
     const { health, fetchStub } = setup()
-    fetchStub.mockImplementation(async (url) => (String(url).endsWith('/identity') ? json({}) : json({ name: POINT })))
+    fetchStub.mockImplementation(async (url) => (String(url).endsWith('/identity') ? json({}) : created(POINT)))
     await health.connect()
     expect(await health.create(entry)).toBe(POINT)
     const [url, init] = fetchStub.mock.calls[1]!
@@ -147,6 +165,26 @@ describe('create', () => {
     })
   })
 
+  it('types the 400 Google answers an unnested body with', async () => {
+    const { health, fetchStub } = setup()
+    fetchStub.mockImplementation(async (url) =>
+      String(url).endsWith('/identity')
+        ? json(IDENTITY)
+        : json(
+            {
+              error: {
+                code: 400,
+                status: 'INVALID_ARGUMENT',
+                message: 'Invalid JSON payload received. Unknown name "foodDisplayName" at \'data_point\': Cannot find field.',
+              },
+            },
+            400,
+          ),
+    )
+    await health.connect()
+    await expect(health.create(entry)).rejects.toMatchObject({ name: 'HealthRequestError', status: 400 })
+  })
+
   it('rejects as not connected, sending nothing, with no token or an expired one', async () => {
     const { health, fetchStub, advance } = setup()
     await expect(health.create(entry)).rejects.toBeInstanceOf(NotConnectedError)
@@ -159,7 +197,7 @@ describe('create', () => {
 
 describe('the account link check', () => {
   const identityThenPoint = (identity: () => Response) => async (url: Parameters<typeof fetch>[0]) =>
-    String(url).endsWith('/identity') ? identity() : json({ name: POINT })
+    String(url).endsWith('/identity') ? identity() : created(POINT)
 
   it('GETs the identity once per token, before the first write', async () => {
     const { health, fetchStub } = setup()
@@ -254,7 +292,7 @@ describe('a grant without a usable expires_in', () => {
 describe('remove', () => {
   it('posts the names to batchDelete', async () => {
     const { health, fetchStub } = setup()
-    fetchStub.mockImplementation(async () => json({}))
+    fetchStub.mockImplementation(async (url) => json(String(url).endsWith('/identity') ? IDENTITY : BATCH_DELETED))
     await health.connect()
     await health.remove([dataPointName(POINT)])
     const [url, init] = fetchStub.mock.calls[1]!
@@ -301,9 +339,22 @@ describe('malformed successes', () => {
     await expect(health.create(entry)).rejects.toBeInstanceOf(HealthRequestError)
   })
 
+  it.each([
+    ['not done', { done: false, response: { name: POINT } }],
+    ['no done', { response: { name: POINT } }],
+    ['no response', { done: true }],
+    ['no name in the response', { done: true, response: {} }],
+    ['a name at the top level only', { name: POINT }],
+  ])('types a create operation with %s', async (_, reply) => {
+    const { health, fetchStub } = setup()
+    fetchStub.mockImplementation(afterIdentity(() => json(reply)))
+    await health.connect()
+    await expect(health.create(entry)).rejects.toBeInstanceOf(HealthRequestError)
+  })
+
   it('types a data point name that is not one', async () => {
     const { health, fetchStub } = setup()
-    fetchStub.mockImplementation(afterIdentity(() => json({ name: 'nonsense' })))
+    fetchStub.mockImplementation(afterIdentity(() => json({ done: true, response: { name: 'nonsense' } })))
     await health.connect()
     await expect(health.create(entry)).rejects.toBeInstanceOf(HealthRequestError)
   })
