@@ -371,3 +371,11 @@ describe('DayScreen swipe', () => {
     expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument()
   })
 })
+
+describe('DayScreen Log in reach', () => {
+  it('pins Log in its own bar, outside the scrolling meal sections', () => {
+    renderScreen()
+    const log = screen.getByRole('button', { name: 'Log' })
+    expect(log.closest('.day-log-bar')).not.toBeNull()
+  })
+})

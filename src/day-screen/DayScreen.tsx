@@ -209,9 +209,11 @@ export function DayScreen({ log, targets, now, day: viewed, onDayChange, onOpenE
           )}
         </>
       )}
-      <Button variant="filled" onClick={() => onLog(viewed)}>
-        Log
-      </Button>
+      <div class="day-log-bar">
+        <Button variant="filled" onClick={() => onLog(viewed)}>
+          Log
+        </Button>
+      </div>
     </section>
   )
 }

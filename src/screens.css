@@ -80,3 +80,28 @@ main.screen.sign-in .ui-button {
   font: inherit;
   cursor: pointer;
 }
+
+/* Log stays at the foot of the viewport however long the Day's entries run. */
+.day-log-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--md-sys-spacing-2) 0;
+  background: var(--md-sys-color-surface);
+}
+
+/* Meal sections sit close together so a full Day needs less scrolling. */
+.day-screen {
+  gap: var(--md-sys-spacing-2);
+}
+
+.day-screen h3 {
+  margin: var(--md-sys-spacing-2) 0 var(--md-sys-spacing-1);
+}
+
+.day-screen .entry-list {
+  margin: 0;
+  padding: 0;
+}
