@@ -144,6 +144,7 @@ export function QuickEntryForm({ log, foods, day, now, estimate, initialName, on
             source: { kind: 'food', foodId },
             perServing: existing.perServing,
             servingLabel: existing.servingLabel,
+            ...(existing.estimated && { estimated: true as const }),
           }
         } else if (created === null) {
           foodId = await foods.add(foodFields)
@@ -159,7 +160,7 @@ export function QuickEntryForm({ log, foods, day, now, estimate, initialName, on
             createdFood.current = { id: foodId, fields: foodFields }
           }
         }
-        if (existing === undefined) picked = { name: trimmedName, source: { kind: 'food', foodId }, perServing }
+        if (existing === undefined) picked = { name: trimmedName, source: { kind: 'food', foodId }, perServing, ...(estimated && { estimated: true as const }) }
       } else if (createdFood.current !== null) {
         // A first attempt saved a Food that the Member has since opted out of: drop it, so it is not left behind unlogged.
         await foods.softDelete(createdFood.current.id)

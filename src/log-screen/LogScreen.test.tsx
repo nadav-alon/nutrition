@@ -414,7 +414,7 @@ describe('LogScreen Quick Entry saved as a Food', () => {
       perServing: { kcal: 95, proteinG: 0.5, carbsG: 25, fatG: 0.3 },
     })
     expect(entriesOn(log, TODAY)).toEqual([
-      expect.objectContaining({ name: 'Apple', source: { kind: 'food', foodId: saved?.id }, servings: 2 }),
+      expect.objectContaining({ name: 'Apple', source: { kind: 'food', foodId: saved?.id }, servings: 2, estimated: true }),
     ])
   })
 
