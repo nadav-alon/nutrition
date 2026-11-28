@@ -70,7 +70,7 @@ main.screen.sign-in .ui-button {
   text-align: center;
 }
 
-/* The Day heading is a button that opens the date picker; it reads as the heading. */
+/* The Day heading is a button that opens the day picker; it reads as the heading. */
 .day-heading {
   min-height: 3rem;
   padding: 0 var(--md-sys-spacing-2);

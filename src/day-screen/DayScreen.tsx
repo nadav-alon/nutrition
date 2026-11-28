@@ -132,8 +132,17 @@ export function DayScreen({ log, targets, now, day: viewed, onDayChange, onOpenE
               aria-label="Pick a day"
               value={viewed}
               max={today}
-              autoFocus
-              onInput={(event) => {
+              ref={(input) => {
+                if (!input) return
+                // Focus alone does not open the native picker on phones; ask for it where supported.
+                input.focus()
+                try {
+                  input.showPicker?.()
+                } catch {
+                  // Not allowed here (no user activation): the focused input still works.
+                }
+              }}
+              onChange={(event) => {
                 const chosen = event.currentTarget.value
                 if (!isDay(chosen)) return
                 setPicking(false)

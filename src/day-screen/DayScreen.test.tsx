@@ -330,16 +330,35 @@ describe('DayScreen Today shortcut', () => {
   })
 })
 
-describe('DayScreen date picker', () => {
+describe('DayScreen day picker', () => {
   it('opens the Day chosen from the picker the heading opens', () => {
     renderScreen()
     expect(screen.queryByLabelText('Pick a day')).toBeNull()
     fireEvent.click(within(screen.getByRole('heading', { level: 2 })).getByRole('button'))
     const picker = screen.getByLabelText('Pick a day')
     expect(picker).toHaveAttribute('max', '2026-03-10')
-    fireEvent.input(picker, { target: { value: '2026-03-01' } })
+    fireEvent.change(picker, { target: { value: '2026-03-01' } })
     expect(screen.getByRole('heading', { name: 'Sun 1 Mar' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Pick a day')).toBeNull()
+  })
+
+  it('ignores the intermediate values typed on the way to a Day', () => {
+    renderScreen()
+    fireEvent.click(within(screen.getByRole('heading', { level: 2 })).getByRole('button'))
+    fireEvent.input(screen.getByLabelText('Pick a day'), { target: { value: '0002-03-10' } })
+    expect(screen.getByLabelText('Pick a day')).toBeInTheDocument()
+  })
+
+  it('opens the native picker when the heading is tapped', () => {
+    const showPicker = vi.fn()
+    HTMLInputElement.prototype.showPicker = showPicker
+    try {
+      renderScreen()
+      fireEvent.click(within(screen.getByRole('heading', { level: 2 })).getByRole('button'))
+      expect(showPicker).toHaveBeenCalledTimes(1)
+    } finally {
+      delete (HTMLInputElement.prototype as Partial<HTMLInputElement>).showPicker
+    }
   })
 })
 
