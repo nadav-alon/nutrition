@@ -6,9 +6,9 @@ import { TextField } from 'household-ui/ui/TextField.tsx'
 import type { EstimateLink } from '../estimate-link.ts'
 import { BackArrow } from '../BackArrow.tsx'
 import { errorMessage } from '../error-message.ts'
-import type { FoodFields, Foods } from '../foods/foods.ts'
+import { findSameFood, type FoodFields, type Foods, type SavedFood } from '../foods/foods.ts'
 import { useConfirmFields } from './confirm-fields.tsx'
-import { logPicked, type LogStepProps } from './log-picked.ts'
+import { logPicked, type LogStepProps, type Picked } from './log-picked.ts'
 
 type MacroKey = keyof nutrition.Nutrition
 
@@ -40,9 +40,35 @@ function toNutrition(text: MacroText): nutrition.Nutrition {
   }
 }
 
+/** The Household's Foods as they are now. */
+function currentFoods(foods: Foods): Promise<readonly SavedFood[]> {
+  return new Promise((resolve, reject) => {
+    let stop: (() => void) | undefined
+    let settled = false
+    const settle = () => {
+      settled = true
+      stop?.()
+    }
+    stop = foods.watch(
+      (list) => {
+        if (settled) return
+        settle()
+        resolve(list)
+      },
+      (error) => {
+        if (settled) return
+        settle()
+        reject(error)
+      },
+    )
+    // A listener that fired before `stop` was assigned could not stop itself.
+    if (settled) stop()
+  })
+}
+
 export type QuickEntryFormProps = LogStepProps & {
   foods: Foods
-  /** An estimate to start the form from; "Save as Food" then starts ticked. */
+  /** An estimate to start the form from; "Save as Food" then starts ticked, and saving logs against a Food of the same name and place rather than adding a duplicate. */
   estimate?: EstimateLink
   /** A name to start the form with when there is no estimate to take it from. */
   initialName?: string
@@ -90,7 +116,7 @@ export function QuickEntryForm({ log, foods, day, now, estimate, initialName, on
     setSaving(true)
     setError(null)
     try {
-      let source: nutrition.LogEntrySource = { kind: 'quick' }
+      let picked: Picked = { name: trimmedName, source: { kind: 'quick' }, perServing, ...(estimated && { estimated: true as const }) }
       if (saveAsFood) {
         const foodFields: FoodFields = {
           name: trimmedName,
@@ -100,8 +126,26 @@ export function QuickEntryForm({ log, foods, day, now, estimate, initialName, on
           estimated,
         }
         const created = createdFood.current
+        const reusesExisting = estimate !== undefined
+        const found = reusesExisting ? findSameFood(await currentFoods(foods), foodFields) : undefined
+        // The Food this form's own earlier attempt created is not "an existing Food" to reuse.
+        const existing = found !== undefined && found.id !== created?.id ? found : undefined
         let foodId: nutrition.FoodId
-        if (created === null) {
+        if (existing !== undefined) {
+          foodId = existing.id
+          if (created !== null) {
+            // A first attempt saved a Food that the Member has since edited into a match for an existing one: drop it, so no duplicate is left.
+            await foods.softDelete(created.id)
+            createdFood.current = null
+          }
+          // Logged as picking that Food would: with its own Nutrition, label and Estimated mark.
+          picked = {
+            name: existing.name,
+            source: { kind: 'food', foodId },
+            perServing: existing.perServing,
+            servingLabel: existing.servingLabel,
+          }
+        } else if (created === null) {
           foodId = await foods.add(foodFields)
           createdFood.current = { id: foodId, fields: foodFields }
         } else {
@@ -115,13 +159,13 @@ export function QuickEntryForm({ log, foods, day, now, estimate, initialName, on
             createdFood.current = { id: foodId, fields: foodFields }
           }
         }
-        source = { kind: 'food', foodId }
+        if (existing === undefined) picked = { name: trimmedName, source: { kind: 'food', foodId }, perServing }
       } else if (createdFood.current !== null) {
         // A first attempt saved a Food that the Member has since opted out of: drop it, so it is not left behind unlogged.
         await foods.softDelete(createdFood.current.id)
         createdFood.current = null
       }
-      await logPicked(log, { name: trimmedName, source, perServing, ...(!saveAsFood && estimated && { estimated: true as const }) }, values)
+      await logPicked(log, picked, values)
       onSaved()
     } catch (err) {
       setError(errorMessage(err, 'Could not save.'))
