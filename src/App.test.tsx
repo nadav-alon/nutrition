@@ -201,6 +201,15 @@ describe('App routes', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(title)
   })
 
+  it.each([
+    [today, 'Log · Today'],
+    [previousDay(today), 'Log · Yesterday'],
+  ])('titles the Log screen for %s "%s"', (logDay, title) => {
+    location.hash = `#/day/${logDay}/log`
+    render(<App {...ports()} />)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(title)
+  })
+
   it('titles a Food being edited "Edit food", and a Log Entry "Log Entry"', async () => {
     const p = ports()
     const id = await p.foods.add({
