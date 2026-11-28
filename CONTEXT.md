@@ -42,7 +42,7 @@ _Avoid_: deep link, prefill link
 
 **Recents**:
 The last distinct things the Member logged, Foods and Quick Entries alike, offered for logging again.
-Logging a Quick Entry again makes a new Quick Entry with the same name and Nutrition.
+Logging a Quick Entry again makes a new Quick Entry with the same name, Nutrition and Estimated flag.
 _Avoid_: history, favourites
 
 **Meal Type**:

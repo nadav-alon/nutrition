@@ -24,13 +24,18 @@ const TODAY = day('2026-03-10')
 const NOW = new Date(2026, 2, 10, 13, 5)
 
 /** Renders the screen over fakes; the Food is added first and the log holds an entry for it, so it is a Recent. */
-async function setup({ withRecents = true, viewed = TODAY }: { withRecents?: boolean; viewed?: Day } = {}) {
+async function setup({
+  withRecents = true,
+  viewed = TODAY,
+  extraEntries = [],
+}: { withRecents?: boolean; viewed?: Day; extraEntries?: readonly Parameters<LogStore['create']>[0][] } = {}) {
   const foods: Foods = fakeFoods()
   const log: LogStore = fakeLogStore()
   const foodId = await foods.add(schnitzelFields)
   if (withRecents) {
     await log.create({ ...schnitzel, source: { kind: 'food', foodId } })
     await log.create(quickToast)
+    for (const extra of extraEntries) await log.create(extra)
   }
   const onDone = vi.fn()
   const view = render(<LogScreen log={log} foods={foods} day={viewed} now={NOW} onDone={onDone} />)
@@ -155,6 +160,25 @@ describe('LogScreen confirm step', () => {
     await waitFor(() => expect(onDone).toHaveBeenCalled())
     const logged = entriesOn(log, TODAY).find((entry) => entry.eatenAt.getTime() === NOW.getTime())
     expect(logged).toMatchObject({ name: 'Toast', source: { kind: 'quick' }, servings: 2, nutrition: { kcal: 360 } })
+  })
+
+  it('logging an Estimated Quick Entry Recent again keeps it Estimated', async () => {
+    const { log, onDone } = await setup({ extraEntries: [{ ...quickToast, name: 'Guess', estimated: true }] })
+    fireEvent.click(await screen.findByRole('button', { name: /Guess/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    const logged = entriesOn(log, TODAY).find((entry) => entry.name === 'Guess' && entry.eatenAt.getTime() === NOW.getTime())
+    expect(logged).toMatchObject({ estimated: true })
+  })
+
+  it('logging a non-Estimated Quick Entry Recent again stores no Estimated flag', async () => {
+    const { log, onDone } = await setup()
+    fireEvent.click(await screen.findByRole('button', { name: /Toast/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    const logged = entriesOn(log, TODAY).find((entry) => entry.name === 'Toast' && entry.eatenAt.getTime() === NOW.getTime())
+    expect(logged).toMatchObject({ name: 'Toast' })
+    expect(logged).not.toHaveProperty('estimated')
   })
 
   it('guesses the Meal Type from the eaten time until the Member picks one', async () => {
