@@ -342,3 +342,32 @@ describe('DayScreen date picker', () => {
     expect(screen.queryByLabelText('Pick a day')).toBeNull()
   })
 })
+
+describe('DayScreen swipe', () => {
+  const swipe = (from: number, to: number, dy = 0) => {
+    const area = screen.getByRole('heading', { level: 2 }).closest('section')!
+    fireEvent.touchStart(area, { changedTouches: [{ clientX: from, clientY: 100 }] })
+    fireEvent.touchEnd(area, { changedTouches: [{ clientX: to, clientY: 100 + dy }] })
+  }
+
+  it('moves one Day either way', () => {
+    renderScreen()
+    swipe(50, 250)
+    expect(screen.getByRole('heading', { name: 'Yesterday' })).toBeInTheDocument()
+    swipe(250, 50)
+    expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument()
+  })
+
+  it('stays on today when swiping to the future', () => {
+    renderScreen()
+    swipe(250, 50)
+    expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument()
+  })
+
+  it('ignores short and mostly vertical drags', () => {
+    renderScreen()
+    swipe(100, 130)
+    swipe(50, 250, 300)
+    expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument()
+  })
+})

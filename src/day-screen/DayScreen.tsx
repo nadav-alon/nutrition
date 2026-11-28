@@ -1,5 +1,5 @@
 import { nutrition } from 'data-platform'
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { Button } from 'household-ui/ui/Button.tsx'
 import { IconButton } from 'household-ui/ui/IconButton.tsx'
 import { ListRow } from 'household-ui/ui/ListRow.tsx'
@@ -27,6 +27,9 @@ export interface DayScreenProps {
   /** Called when the Member asks to set their Targets. */
   onSetTargets: () => void
 }
+
+/** The horizontal travel, in CSS pixels, that makes a touch a swipe between Days. */
+const SWIPE_MIN_PX = 60
 
 const MEAL_TYPE_LABELS: Record<nutrition.MealType, string> = {
   breakfast: 'Breakfast',
@@ -85,6 +88,7 @@ function MacroBar({ macro: { label, unit }, eaten: rawEaten, target }: MacroBarP
 export function DayScreen({ log, targets, now, day: viewed, onDayChange, onOpenEntry, onLog, onSetTargets }: DayScreenProps) {
   const today = dayOf(now)
   const [picking, setPicking] = useState(false)
+  const swipeStart = useRef<{ x: number; y: number } | null>(null)
   const dayEntries = useDayEntries(log, viewed)
   const [targetsState, setTargetsState] = useState<TargetsState>({ status: 'loading' })
   useEffect(() => {
@@ -101,7 +105,24 @@ export function DayScreen({ log, targets, now, day: viewed, onDayChange, onOpenE
   const entries = dayEntries.status === 'loaded' ? dayEntries.entries : null
   const total = (key: MacroKey) => (entries ?? []).reduce((sum, entry) => sum + entry.nutrition[key], 0)
   return (
-    <section class="screen day-screen">
+    <section
+      class="screen day-screen"
+      onTouchStart={(event) => {
+        const touch = event.changedTouches[0]
+        swipeStart.current = touch ? { x: touch.clientX, y: touch.clientY } : null
+      }}
+      onTouchEnd={(event) => {
+        const start = swipeStart.current
+        const touch = event.changedTouches[0]
+        swipeStart.current = null
+        if (!start || !touch) return
+        const dx = touch.clientX - start.x
+        const dy = touch.clientY - start.y
+        if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) < 2 * Math.abs(dy)) return
+        // Dragging right pulls the earlier Day in, as turning a page back does.
+        onDayChange(dx > 0 ? previousDay(viewed) : nextDay(viewed, now))
+      }}
+    >
       <header class="day-nav">
         <IconButton symbol={ChevronLeft} label="Previous day" onClick={() => onDayChange(previousDay(viewed))} />
         <h2>
