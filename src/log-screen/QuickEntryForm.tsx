@@ -44,15 +44,17 @@ export type QuickEntryFormProps = LogStepProps & {
   foods: Foods
   /** An estimate to start the form from; "Save as Food" then starts ticked. */
   estimate?: EstimateLink
+  /** A name to start the form with when there is no estimate to take it from. */
+  initialName?: string
 }
 
 /**
  * A name and per-Serving Nutrition typed once, with the confirm fields, logged as a Quick Entry; or,
  * with "Save as Food", saved as a Food first and logged as an entry of that Food.
  */
-export function QuickEntryForm({ log, foods, day, now, estimate, onSaved, onBack }: QuickEntryFormProps) {
+export function QuickEntryForm({ log, foods, day, now, estimate, initialName, onSaved, onBack }: QuickEntryFormProps) {
   const { values, fields } = useConfirmFields(day, now, estimate?.servings)
-  const [name, setName] = useState(estimate?.name ?? '')
+  const [name, setName] = useState(estimate?.name ?? initialName ?? '')
   const [macroText, setMacroText] = useState<MacroText>({
     kcal: estimate?.kcal ?? '',
     proteinG: estimate?.proteinG ?? '',

@@ -3,7 +3,7 @@ import { Button } from 'household-ui/ui/Button.tsx'
 import type { nutrition } from 'data-platform'
 import { StatusScreen } from './StatusScreen.tsx'
 import { AccountAction } from './gate/account.tsx'
-import type { Day } from './day.ts'
+import { dayLabel, type Day } from './day.ts'
 import { DayScreen } from './day-screen/DayScreen.tsx'
 import { FoodsScreen } from './foods-screen/FoodsScreen.tsx'
 import type { Foods } from './foods/foods.ts'
@@ -35,7 +35,7 @@ export function App({ log, foods, targets, settings }: AppPorts) {
   const leaveToDay = () => backToAny(home, (from) => from.name === 'day')
   const backToDay = (day: Day) => back({ name: 'day', day })
   return (
-    <TopAppBar title={titleOf(route)}>
+    <TopAppBar title={titleOf(route, now)}>
       <TopAppBarActions>
         <nav class="app-nav" aria-label="Main">
           <Button
@@ -95,13 +95,13 @@ export function App({ log, foods, targets, settings }: AppPorts) {
   )
 }
 
-/** The app bar's title for `route`: the app's name on the Day, the screen's own elsewhere. */
-function titleOf(route: Route): string {
+/** The app bar's title for `route`: the app's name on the Day, the screen's own elsewhere, the Log screen's naming the Day it logs to. */
+function titleOf(route: Route, now: Date): string {
   switch (route.name) {
     case 'day':
       return 'Nutrition'
     case 'log':
-      return 'Log'
+      return `Log · ${dayLabel(route.day, now)}`
     case 'entry':
       return 'Log Entry'
     case 'foods':

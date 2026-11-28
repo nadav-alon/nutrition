@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/preact'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nutrition } from 'data-platform'
 import { day, dayEnd, dayStart, type Day } from '../day.ts'
 import { fakeFoods } from '../foods/fake-foods.ts'
@@ -20,6 +20,11 @@ const schnitzelFields: FoodFields = {
   perServing: { kcal: kcal(500), proteinG: grams(30), carbsG: grams(50), fatG: grams(20) },
   estimated: false,
 }
+
+beforeEach(() => {
+  // A step entry left by an earlier test would count as the current test's own.
+  history.replaceState(null, '', location.href)
+})
 
 const TODAY = day('2026-03-10')
 const NOW = new Date(2026, 2, 10, 13, 5)
@@ -53,20 +58,34 @@ describe('LogScreen Recents', () => {
 })
 
 describe('LogScreen Recents, beyond the list', () => {
-  it('shows Recents above the search results while searching', async () => {
+  it('puts the search field above Recents, and Food results replace Recents while a query is typed', async () => {
     await setup()
-    fireEvent.input(screen.getByLabelText('Search foods'), { target: { value: 'schnitzel' } })
-    const foodsSection = await screen.findByRole('region', { name: 'Foods' })
-    const recentsSection = screen.getByRole('region', { name: 'Recents' })
-    expect(recentsSection.compareDocumentPosition(foodsSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const search = screen.getByLabelText('Search foods')
+    const recentsSection = await screen.findByRole('region', { name: 'Recents' })
+    expect(search.compareDocumentPosition(recentsSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    fireEvent.input(search, { target: { value: 'schnitzel' } })
+    expect(await screen.findByRole('region', { name: 'Foods' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Recents' })).toBeNull()
+  })
+
+  it('shows no Recents heading when there are none', async () => {
+    await setup({ withRecents: false })
+    expect(screen.queryByText('Recents')).toBeNull()
+  })
+
+  it('offers a Quick Entry with the typed name prefilled when no Food matches', async () => {
+    await setup({ withRecents: false })
+    fireEvent.input(screen.getByLabelText('Search foods'), { target: { value: 'Pizza slice' } })
+    fireEvent.click(await screen.findByRole('button', { name: /Quick entry for/ }))
+    expect(screen.getByLabelText('Name')).toHaveValue('Pizza slice')
   })
 
   it('leaves a soft-deleted Food out of Recents and of search', async () => {
     const { foods, foodId } = await setup()
     await foods.softDelete(foodId)
+    expect(within(await screen.findByRole('region', { name: 'Recents' })).queryByText('Schnitzel plate')).toBeNull()
     fireEvent.input(screen.getByLabelText('Search foods'), { target: { value: 'schnitzel' } })
     expect(await screen.findByText('No Foods match.')).toBeInTheDocument()
-    expect(within(screen.getByRole('region', { name: 'Recents' })).queryByText('Schnitzel plate')).toBeNull()
   })
 
   it('shows a failure to watch the Foods', async () => {
@@ -84,6 +103,28 @@ describe('LogScreen Recents, beyond the list', () => {
     vi.spyOn(log, 'recent').mockRejectedValue(new Error('recents offline'))
     renderInAppBar(<LogScreen log={log} foods={fakeFoods()} day={TODAY} now={NOW} onDone={vi.fn()} />)
     expect(await screen.findByRole('alert')).toHaveTextContent('recents offline')
+  })
+})
+
+describe('LogScreen rows', () => {
+  it('shows place · kcal and the Estimated mark on Recents and on results, telling same-named Foods apart', async () => {
+    const { foods } = await setup()
+    await foods.add({ ...schnitzelFields, place: 'Home', perServing: { ...schnitzelFields.perServing, kcal: kcal(420) }, estimated: true })
+    const recentsSection = await screen.findByRole('region', { name: 'Recents' })
+    expect(within(recentsSection).getByText('Canteen · 500 kcal')).toBeInTheDocument()
+    expect(within(recentsSection).getByText('180 kcal')).toBeInTheDocument()
+
+    fireEvent.input(screen.getByLabelText('Search foods'), { target: { value: 'schnitzel' } })
+    const found = await screen.findByRole('region', { name: 'Foods' })
+    expect(within(found).getByText('Canteen · 500 kcal')).toBeInTheDocument()
+    expect(within(found).getByText('Home · 420 kcal')).toBeInTheDocument()
+    expect(within(found).getAllByText('Estimated')).toHaveLength(1)
+  })
+
+  it('marks an Estimated Quick Entry Recent', async () => {
+    await setup({ extraEntries: [{ ...quickToast, name: 'Guess', estimated: true }] })
+    const recentsSection = await screen.findByRole('region', { name: 'Recents' })
+    expect(within(recentsSection).getAllByText('Estimated')).toHaveLength(1)
   })
 })
 
@@ -142,6 +183,22 @@ describe('LogScreen confirm step', () => {
       mealType: 'lunch',
       nutrition: { kcal: 750, proteinG: 45, carbsG: 75, fatG: 30 },
     })
+  })
+
+  it('shows kcal and macros for the chosen Servings, following the Servings field', async () => {
+    await setup()
+    fireEvent.click(await screen.findByRole('button', { name: /Schnitzel plate/ }))
+    const summary = screen.getByLabelText('Nutrition for these Servings')
+    expect(summary).toHaveTextContent('500 kcal · 30 g protein · 50 g carbs · 20 g fat')
+    fireEvent.input(screen.getByLabelText('Servings'), { target: { value: '1.5' } })
+    expect(summary).toHaveTextContent('750 kcal · 45 g protein · 75 g carbs · 30 g fat')
+  })
+
+  it('keeps showing kcal and macros for the Servings while the eaten time is cleared', async () => {
+    await setup()
+    fireEvent.click(await screen.findByRole('button', { name: /Schnitzel plate/ }))
+    fireEvent.input(screen.getByLabelText('Eaten at'), { target: { value: '' } })
+    expect(screen.getByLabelText('Nutrition for these Servings')).toHaveTextContent('500 kcal')
   })
 
   it('logs a Food found by search', async () => {
@@ -205,7 +262,7 @@ describe('LogScreen confirm step', () => {
     const { log, onDone } = await setup()
     fireEvent.click(await screen.findByRole('button', { name: /Toast/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
-    expect(screen.getByRole('region', { name: 'Recents' })).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Recents' })).toBeInTheDocument()
     expect(onDone).not.toHaveBeenCalled()
     expect(entriesOn(log, TODAY).filter((entry) => entry.eatenAt.getTime() === NOW.getTime())).toEqual([])
   })
@@ -295,7 +352,7 @@ describe('LogScreen Quick Entry', () => {
     const { onDone } = await setup({ withRecents: false })
     fireEvent.click(screen.getByRole('button', { name: 'Quick entry' }))
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
-    expect(screen.getByRole('region', { name: 'Recents' })).toBeInTheDocument()
+    expect(await screen.findByLabelText('Search foods')).toBeInTheDocument()
     expect(onDone).not.toHaveBeenCalled()
   })
 })
@@ -524,5 +581,59 @@ describe('LogScreen back arrow', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Schnitzel plate/ }))
     await screen.findByLabelText('Servings')
     expectOneBackInAppBar()
+  })
+})
+
+describe('LogScreen system back', () => {
+  it('returns from the confirm step to the Log list', async () => {
+    const { onDone } = await setup()
+    const depth = history.length
+    fireEvent.click(await screen.findByRole('button', { name: /Toast/ }))
+    expect(history.length).toBe(depth + 1)
+    history.back()
+    expect(await screen.findByLabelText('Search foods')).toBeInTheDocument()
+    expect(onDone).not.toHaveBeenCalled()
+  })
+
+  it('returns from the Quick Entry step to the Log list', async () => {
+    const { onDone } = await setup({ withRecents: false })
+    fireEvent.click(screen.getByRole('button', { name: 'Quick entry' }))
+    history.back()
+    expect(await screen.findByLabelText('Search foods')).toBeInTheDocument()
+    expect(onDone).not.toHaveBeenCalled()
+  })
+
+  it('leaves the history where it started once a step is saved', async () => {
+    const { onDone } = await setup()
+    fireEvent.click(await screen.findByRole('button', { name: /Toast/ }))
+    const depth = history.length
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    expect(history.length).toBe(depth)
+    expect(location.hash).toBe('')
+  })
+})
+
+describe('LogScreen system back, beyond one visit', () => {
+  it('drops a step entry it remounts onto, so the list needs one Back, not two', async () => {
+    const { onDone, unmount } = await setup()
+    fireEvent.click(await screen.findByRole('button', { name: /Toast/ }))
+    expect(history.state).toMatchObject({ logStep: true })
+    unmount()
+    const remounted = renderInAppBar(<LogScreen log={fakeLogStore()} foods={fakeFoods()} day={TODAY} now={NOW} onDone={onDone} />)
+    expect(await screen.findByLabelText('Search foods')).toBeInTheDocument()
+    await waitFor(() => expect(history.state).not.toMatchObject({ logStep: true }))
+    remounted.unmount()
+  })
+
+  it('gives an estimate link’s Quick Entry its own entry, so system back and Back both return to the list', async () => {
+    const onDone = vi.fn()
+    renderInAppBar(
+      <LogScreen log={fakeLogStore()} foods={fakeFoods()} day={TODAY} now={NOW} onDone={onDone} estimate={{ name: 'Shawarma plate', place: '', kcal: '', proteinG: '', carbsG: '', fatG: '', servings: '1', estimated: false }} />,
+    )
+    await waitFor(() => expect(history.state).toMatchObject({ logStep: true }))
+    history.back()
+    expect(await screen.findByLabelText('Search foods')).toBeInTheDocument()
+    expect(onDone).not.toHaveBeenCalled()
   })
 })
