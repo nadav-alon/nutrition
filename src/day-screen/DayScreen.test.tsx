@@ -309,3 +309,108 @@ describe('DayScreen robustness', () => {
     expect(screen.queryByRole('meter', { name: 'Calories' })).not.toBeInTheDocument()
   })
 })
+
+describe('DayScreen Today shortcut', () => {
+  /** The Today shortcut: a button named Today that is not the Day heading's own. */
+  const shortcut = () => screen.queryAllByRole('button', { name: 'Today' }).filter((button) => !button.closest('h2'))
+
+  it('is absent on today', () => {
+    renderScreen()
+    expect(shortcut()).toHaveLength(0)
+  })
+
+  it('shows on any other Day and returns to today in one tap', () => {
+    renderScreen()
+    fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
+    expect(shortcut()).toHaveLength(1)
+    fireEvent.click(shortcut()[0]!)
+    expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument()
+    expect(shortcut()).toHaveLength(0)
+  })
+})
+
+describe('DayScreen day picker', () => {
+  it('opens the Day chosen from the picker the heading opens', () => {
+    renderScreen()
+    expect(screen.queryByLabelText('Pick a day')).toBeNull()
+    fireEvent.click(within(screen.getByRole('heading', { level: 2 })).getByRole('button'))
+    const picker = screen.getByLabelText('Pick a day')
+    expect(picker).toHaveAttribute('max', '2026-03-10')
+    fireEvent.change(picker, { target: { value: '2026-03-01' } })
+    expect(screen.getByRole('heading', { name: 'Sun 1 Mar' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Pick a day')).toBeNull()
+  })
+
+  it('ignores the intermediate values typed on the way to a Day', () => {
+    renderScreen()
+    fireEvent.click(within(screen.getByRole('heading', { level: 2 })).getByRole('button'))
+    fireEvent.input(screen.getByLabelText('Pick a day'), { target: { value: '0002-03-10' } })
+    expect(screen.getByLabelText('Pick a day')).toBeInTheDocument()
+  })
+
+  it('opens the native picker when the heading is tapped', () => {
+    const showPicker = vi.fn()
+    HTMLInputElement.prototype.showPicker = showPicker
+    try {
+      renderScreen()
+      fireEvent.click(within(screen.getByRole('heading', { level: 2 })).getByRole('button'))
+      expect(showPicker).toHaveBeenCalledTimes(1)
+    } finally {
+      delete (HTMLInputElement.prototype as Partial<HTMLInputElement>).showPicker
+    }
+  })
+})
+
+describe('DayScreen swipe', () => {
+  const swipe = (from: number, to: number, dy = 0) => {
+    const area = screen.getByRole('heading', { level: 2 }).closest('section')!
+    fireEvent.touchStart(area, { changedTouches: [{ clientX: from, clientY: 100 }] })
+    fireEvent.touchEnd(area, { changedTouches: [{ clientX: to, clientY: 100 + dy }] })
+  }
+
+  it('moves one Day either way', () => {
+    renderScreen()
+    swipe(50, 250)
+    expect(screen.getByRole('heading', { name: 'Yesterday' })).toBeInTheDocument()
+    swipe(250, 50)
+    expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument()
+  })
+
+  it('stays on today when swiping to the future', () => {
+    renderScreen()
+    swipe(250, 50)
+    expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument()
+  })
+
+  it('ignores short and mostly vertical drags', () => {
+    renderScreen()
+    swipe(100, 130)
+    swipe(50, 250, 300)
+    expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument()
+  })
+})
+
+describe('DayScreen swipe gestures that are not swipes', () => {
+  it('ignores a cancelled touch and a multi-touch pinch', () => {
+    renderScreen()
+    const area = screen.getByRole('heading', { level: 2 }).closest('section')!
+    fireEvent.touchStart(area, { changedTouches: [{ clientX: 50, clientY: 100 }] })
+    fireEvent.touchCancel(area)
+    fireEvent.touchEnd(area, { changedTouches: [{ clientX: 250, clientY: 100 }] })
+    fireEvent.touchStart(area, {
+      touches: [{ clientX: 50, clientY: 100 }, { clientX: 90, clientY: 100 }],
+      changedTouches: [{ clientX: 50, clientY: 100 }],
+    })
+    fireEvent.touchEnd(area, { changedTouches: [{ clientX: 250, clientY: 100 }] })
+    expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument()
+  })
+})
+
+describe('DayScreen Log in reach', () => {
+  it('pins Log in its own bar, outside the scrolling meal sections', () => {
+    renderScreen()
+    const log = screen.getByRole('button', { name: 'Log' })
+    expect(log.closest('.day-log-bar')).not.toBeNull()
+  })
+})

@@ -58,6 +58,36 @@ describe('App routes', () => {
     expect(screen.getByRole('heading', { name: 'Yesterday' })).toBeInTheDocument()
   })
 
+  it('replaces the history entry when moving between Days, so back leaves the Day screen in one step', () => {
+    render(<App {...ports()} />)
+    const before = history.length
+    for (let i = 0; i < 5; i++) fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
+    expect(history.length).toBe(before)
+  })
+
+  it('leaves the Day screen in one back, however the Member moved between Days', async () => {
+    location.hash = '#/foods'
+    render(<App {...ports()} />)
+    await screen.findByRole('button', { name: 'Back' })
+    history.pushState({ from: '#/foods' }, '', `#/day/${previousDay(today)}`)
+    dispatchEvent(new PopStateEvent('popstate'))
+    await screen.findByRole('button', { name: 'Previous day' })
+    const before = history.length
+    const heading = () => screen.getByRole('heading', { level: 2 })
+    fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
+    const area = heading().closest('section')!
+    fireEvent.touchStart(area, { changedTouches: [{ clientX: 250, clientY: 100 }] })
+    fireEvent.touchEnd(area, { changedTouches: [{ clientX: 50, clientY: 100 }] })
+    fireEvent.click(within(heading()).getByRole('button'))
+    fireEvent.change(screen.getByLabelText('Pick a day'), { target: { value: previousDay(previousDay(today)) } })
+    fireEvent.click(screen.getByRole('button', { name: 'Today' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
+    expect(history.length).toBe(before)
+    history.back()
+    await waitFor(() => expect(location.hash).toBe('#/foods'))
+    await screen.findByRole('button', { name: 'Back' })
+  })
+
   it("leaves a route meaning today when the Member comes back to today's Day", () => {
     location.hash = `#/day/${today}/log`
     render(<App {...ports()} />)

@@ -5,9 +5,10 @@ import { IconButton } from 'household-ui/ui/IconButton.tsx'
 import { ListRow } from 'household-ui/ui/ListRow.tsx'
 import ChevronLeft from '~icons/material-symbols/chevron-left'
 import ChevronRight from '~icons/material-symbols/chevron-right'
-import { dayLabel, dayOf, nextDay, previousDay, type Day } from '../day.ts'
+import { dayLabel, dayOf, isDay, nextDay, previousDay, type Day } from '../day.ts'
 import { roundForDisplay } from '../foods/supporting-line.ts'
 import type { LogEntry, LogStore } from '../log/log-store.ts'
+import { useSwipe } from './use-swipe.ts'
 import { useDayEntries } from '../log/use-day-entries.ts'
 import type { Targets, TargetsPort } from '../targets/targets-port.ts'
 
@@ -84,6 +85,11 @@ function MacroBar({ macro: { label, unit }, eaten: rawEaten, target }: MacroBarP
 /** One Day's Log Entries against the Member's Targets; stepping to earlier Days. */
 export function DayScreen({ log, targets, now, day: viewed, onDayChange, onOpenEntry, onLog, onSetTargets }: DayScreenProps) {
   const today = dayOf(now)
+  const [picking, setPicking] = useState(false)
+  const toPrevious = () => onDayChange(previousDay(viewed))
+  const toNext = () => onDayChange(nextDay(viewed, now))
+  // Dragging right pulls the earlier Day in, as turning a page back does.
+  const swipe = useSwipe({ onRight: toPrevious, onLeft: toNext })
   const dayEntries = useDayEntries(log, viewed)
   const [targetsState, setTargetsState] = useState<TargetsState>({ status: 'loading' })
   useEffect(() => {
@@ -100,17 +106,52 @@ export function DayScreen({ log, targets, now, day: viewed, onDayChange, onOpenE
   const entries = dayEntries.status === 'loaded' ? dayEntries.entries : null
   const total = (key: MacroKey) => (entries ?? []).reduce((sum, entry) => sum + entry.nutrition[key], 0)
   return (
-    <section class="screen day-screen">
+    <section class="screen day-screen" {...swipe}>
       <header class="day-nav">
-        <IconButton symbol={ChevronLeft} label="Previous day" onClick={() => onDayChange(previousDay(viewed))} />
-        <h2>{dayLabel(viewed, now)}</h2>
+        <IconButton symbol={ChevronLeft} label="Previous day" onClick={toPrevious} />
+        <h2>
+          {picking ? (
+            <input
+              type="date"
+              aria-label="Pick a day"
+              value={viewed}
+              max={today}
+              ref={(input) => {
+                if (!input) return
+                // Focus alone does not open the native picker on phones; ask for it where supported.
+                input.focus()
+                try {
+                  input.showPicker?.()
+                } catch {
+                  // Not allowed here (no user activation): the focused input still works.
+                }
+              }}
+              onChange={(event) => {
+                const chosen = event.currentTarget.value
+                if (!isDay(chosen)) return
+                setPicking(false)
+                onDayChange(chosen > today ? today : chosen)
+              }}
+              onBlur={() => setPicking(false)}
+            />
+          ) : (
+            <button type="button" class="day-heading" title="Pick a day" onClick={() => setPicking(true)}>
+              {dayLabel(viewed, now)}
+            </button>
+          )}
+        </h2>
         <IconButton
           symbol={ChevronRight}
           label="Next day"
           disabled={viewed === today}
-          onClick={() => onDayChange(nextDay(viewed, now))}
+          onClick={toNext}
         />
       </header>
+      {viewed === today ? null : (
+        <Button variant="text" onClick={() => onDayChange(today)}>
+          Today
+        </Button>
+      )}
       {targetsState.status === 'failed' ? <p>Targets unavailable.</p> : null}
       {noTargets ? (
         <p>
@@ -161,9 +202,11 @@ export function DayScreen({ log, targets, now, day: viewed, onDayChange, onOpenE
           )}
         </>
       )}
-      <Button variant="filled" onClick={() => onLog(viewed)}>
-        Log
-      </Button>
+      <div class="day-log-bar">
+        <Button variant="filled" onClick={() => onLog(viewed)}>
+          Log
+        </Button>
+      </div>
     </section>
   )
 }

@@ -69,3 +69,41 @@ main.screen.sign-in .ui-button {
   margin: 0;
   text-align: center;
 }
+
+/* The Day heading is a button that opens the day picker; it reads as the heading. */
+.day-heading {
+  min-height: 3rem;
+  padding: 0 var(--md-sys-spacing-2);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Log stays at the foot of the viewport however long the Day's entries run. */
+.day-log-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--md-sys-spacing-2) 0;
+  /* Clear a gesture-navigation bar where the page extends under it. */
+  padding-bottom: calc(var(--md-sys-spacing-2) + env(safe-area-inset-bottom, 0px));
+  background: var(--md-sys-color-surface);
+}
+
+/* Meal sections sit close together so a full Day needs less scrolling. */
+.day-screen {
+  gap: var(--md-sys-spacing-2);
+}
+
+.day-screen h3 {
+  margin: var(--md-sys-spacing-2) 0 var(--md-sys-spacing-1);
+}
+
+.day-screen .entry-list {
+  margin: 0;
+  padding: 0;
+}
