@@ -5,9 +5,10 @@ import { routesFor, type Route } from './routes.ts'
 /**
  * The route the location hash names, how to go to another (a new history entry, so the browser's
  * back button returns to the previous screen and a refresh stays on this one), and how to finish
- * with a screen: back to `route` when that is the entry just before, otherwise on to it.
+ * with a screen: back to `route` when that is the entry just before, otherwise on to it. A `back`
+ * given `acceptFrom` instead goes back whenever the entry just before is a route it accepts.
  */
-export function useRoute(today: Day): [Route, (route: Route) => void, (route: Route) => void] {
+export function useRoute(today: Day): [Route, (route: Route) => void, (route: Route, acceptFrom?: (from: Route) => boolean) => void] {
   const { hashFor, parseRoute } = routesFor(today)
   const [hash, setHash] = useState(() => location.hash)
   useEffect(() => {
@@ -33,10 +34,13 @@ export function useRoute(today: Day): [Route, (route: Route) => void, (route: Ro
     history.pushState({ from: location.hash }, '', hashFor(route))
     setHash(location.hash)
   }
-  const back = (route: Route) => {
+  const back = (route: Route, acceptFrom?: (from: Route) => boolean) => {
     const from = (history.state as { from?: string } | null)?.from
     // An empty hash reads as today's Day, so compare routes, not hash text.
-    if (from !== undefined && hashFor(parseRoute(from)) === hashFor(route)) history.back()
+    const accepted =
+      from !== undefined &&
+      (acceptFrom === undefined ? hashFor(parseRoute(from)) === hashFor(route) : acceptFrom(parseRoute(from)))
+    if (accepted) history.back()
     else go(route)
   }
   return [parseRoute(hash), go, back]

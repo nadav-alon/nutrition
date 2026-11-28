@@ -31,6 +31,8 @@ export function App({ log, foods, targets, settings }: AppPorts) {
   const { now, today } = useNow()
   const [route, go, back] = useRoute(today)
   const home: Route = { name: 'day', day: today }
+  /** Back to the Day the Member came from, whichever it was, else on to today's. */
+  const leaveToDay = () => back(home, (from) => from.name === 'day')
   const backToDay = (day: Day) => back({ name: 'day', day })
   return (
     <TopAppBar title="Nutrition">
@@ -85,10 +87,10 @@ export function App({ log, foods, targets, settings }: AppPorts) {
           form={route.form}
           onOpenForm={(form) => go({ name: 'foods', form })}
           onCloseForm={() => back({ name: 'foods' })}
-          onLeave={() => back(home)}
+          onLeave={leaveToDay}
         />
       )}
-      {route.name === 'targets' && <TargetsScreen targets={targets} settings={settings} onLeave={() => back(home)} />}
+      {route.name === 'targets' && <TargetsScreen targets={targets} settings={settings} onLeave={leaveToDay} />}
     </TopAppBar>
   )
 }

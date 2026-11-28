@@ -116,6 +116,18 @@ describe('App routes', () => {
     expect(screen.queryByRole('heading', { name: 'Today' })).toBeNull()
   })
 
+  it.each(['Foods', 'Targets'])('goes back from %s to the Day that was being viewed, by history', async (name) => {
+    location.hash = `#/day/${previousDay(today)}`
+    render(<App {...ports()} />)
+    const push = vi.spyOn(history, 'pushState')
+    fireEvent.click(screen.getByRole('button', { name }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Back' }))
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Yesterday' })).toBeInTheDocument())
+    expect(location.hash).toBe(`#/day/${previousDay(today)}`)
+    expect(push).toHaveBeenCalledTimes(1)
+    push.mockRestore()
+  })
+
   it('opens the Log screen for the viewed Day', () => {
     render(<App {...ports()} />)
     fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
