@@ -620,12 +620,11 @@ describe('LogScreen system back, beyond one visit', () => {
   })
 
   it('gives an estimate link’s Quick Entry its own entry, so system back and Back both return to the list', async () => {
-    const depth = history.length
     const onDone = vi.fn()
     renderInAppBar(
       <LogScreen log={fakeLogStore()} foods={fakeFoods()} day={TODAY} now={NOW} onDone={onDone} estimate={{ name: 'Shawarma plate', place: '', kcal: '', proteinG: '', carbsG: '', fatG: '', servings: '1', estimated: false }} />,
     )
-    await waitFor(() => expect(history.length).toBe(depth + 1))
+    await waitFor(() => expect(history.state).toMatchObject({ logStep: true }))
     history.back()
     expect(await screen.findByLabelText('Search foods')).toBeInTheDocument()
     expect(onDone).not.toHaveBeenCalled()
