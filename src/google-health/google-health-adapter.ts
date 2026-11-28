@@ -34,17 +34,19 @@ function toDataPoint(entry: HealthEntry) {
   const start = timeAt(entry.eatenAt)
   const end = timeAt(new Date(entry.eatenAt.getTime() + MINUTE_MS))
   return {
-    foodDisplayName: entry.name,
-    mealType: entry.mealType.toUpperCase(),
-    energy: { kcal: entry.nutrition.kcal },
-    totalCarbohydrate: { grams: entry.nutrition.carbsG },
-    totalFat: { grams: entry.nutrition.fatG },
-    nutrients: [{ nutrient: 'PROTEIN', quantity: { grams: entry.nutrition.proteinG } }],
-    interval: {
-      startTime: start.time,
-      startUtcOffset: start.utcOffset,
-      endTime: end.time,
-      endUtcOffset: end.utcOffset,
+    nutritionLog: {
+      foodDisplayName: entry.name,
+      mealType: entry.mealType.toUpperCase(),
+      energy: { kcal: entry.nutrition.kcal },
+      totalCarbohydrate: { grams: entry.nutrition.carbsG },
+      totalFat: { grams: entry.nutrition.fatG },
+      nutrients: [{ nutrient: 'PROTEIN', quantity: { grams: entry.nutrition.proteinG } }],
+      interval: {
+        startTime: start.time,
+        startUtcOffset: start.utcOffset,
+        endTime: end.time,
+        endUtcOffset: end.utcOffset,
+      },
     },
   }
 }

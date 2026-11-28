@@ -104,7 +104,7 @@ describe('create', () => {
     fetchStub.mockImplementation(async (url) => (String(url).endsWith('/identity') ? json({}) : json({ name: POINT })))
     await health.connect()
     await health.create({ ...entry, eatenAt })
-    const { interval } = JSON.parse(fetchStub.mock.calls[1]![1]?.body as string)
+    const { interval } = JSON.parse(fetchStub.mock.calls[1]![1]?.body as string).nutritionLog
     return [interval.startUtcOffset, interval.endUtcOffset]
   }
 
@@ -130,17 +130,19 @@ describe('create', () => {
     expect(init?.method).toBe('POST')
     expect(init?.headers).toMatchObject({ authorization: 'Bearer tok' })
     expect(JSON.parse(init?.body as string)).toEqual({
-      foodDisplayName: 'Canteen schnitzel',
-      mealType: 'LUNCH',
-      energy: { kcal: 650 },
-      totalCarbohydrate: { grams: 70 },
-      totalFat: { grams: 25 },
-      nutrients: [{ nutrient: 'PROTEIN', quantity: { grams: 30 } }],
-      interval: {
-        startTime: '2026-11-27T12:30:00.000Z',
-        startUtcOffset: '7200s',
-        endTime: '2026-11-27T12:31:00.000Z',
-        endUtcOffset: '7200s',
+      nutritionLog: {
+        foodDisplayName: 'Canteen schnitzel',
+        mealType: 'LUNCH',
+        energy: { kcal: 650 },
+        totalCarbohydrate: { grams: 70 },
+        totalFat: { grams: 25 },
+        nutrients: [{ nutrient: 'PROTEIN', quantity: { grams: 30 } }],
+        interval: {
+          startTime: '2026-11-27T12:30:00.000Z',
+          startUtcOffset: '7200s',
+          endTime: '2026-11-27T12:31:00.000Z',
+          endUtcOffset: '7200s',
+        },
       },
     })
   })
