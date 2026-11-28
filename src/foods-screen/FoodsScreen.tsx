@@ -7,6 +7,7 @@ import { BackArrow } from '../BackArrow.tsx'
 import { StatusScreen } from '../StatusScreen.tsx'
 import { errorMessage } from '../error-message.ts'
 import type { Foods, SavedFood } from '../foods/foods.ts'
+import { supportingLine } from '../foods/supporting-line.ts'
 import { FoodForm } from './FoodForm.tsx'
 
 export interface FoodsScreenProps {
@@ -19,12 +20,6 @@ export interface FoodsScreenProps {
   onCloseForm: () => void
   /** Called when the Member leaves the Foods for where they came from. */
   onLeave: () => void
-}
-
-/** The supporting line of a Food's row: its place, when it has one, then the kcal of one Serving. */
-function supportingLine(food: SavedFood): string {
-  const kcal = `${Math.round(food.perServing.kcal * 10) / 10} kcal`
-  return food.place === undefined ? kcal : `${food.place} · ${kcal}`
 }
 
 /** Whether the query, ignoring case and surrounding space, appears in the Food's name or place. */

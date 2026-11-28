@@ -101,6 +101,28 @@ describe('LogScreen Recents, beyond the list', () => {
   })
 })
 
+describe('LogScreen rows', () => {
+  it('shows place · kcal and the Estimated mark on Recents and on results, telling same-named Foods apart', async () => {
+    const { foods } = await setup()
+    await foods.add({ ...schnitzelFields, place: 'Home', perServing: { ...schnitzelFields.perServing, kcal: kcal(420) }, estimated: true })
+    const recentsSection = await screen.findByRole('region', { name: 'Recents' })
+    expect(within(recentsSection).getByText('Canteen · 500 kcal')).toBeInTheDocument()
+    expect(within(recentsSection).getByText('180 kcal')).toBeInTheDocument()
+
+    fireEvent.input(screen.getByLabelText('Search foods'), { target: { value: 'schnitzel' } })
+    const found = await screen.findByRole('region', { name: 'Foods' })
+    expect(within(found).getByText('Canteen · 500 kcal')).toBeInTheDocument()
+    expect(within(found).getByText('Home · 420 kcal')).toBeInTheDocument()
+    expect(within(found).getAllByText('Estimated')).toHaveLength(1)
+  })
+
+  it('marks an Estimated Quick Entry Recent', async () => {
+    await setup({ extraEntries: [{ ...quickToast, name: 'Guess', estimated: true }] })
+    const recentsSection = await screen.findByRole('region', { name: 'Recents' })
+    expect(within(recentsSection).getAllByText('Estimated')).toHaveLength(1)
+  })
+})
+
 describe('LogScreen search', () => {
   it('filters live Foods by name and by place as the Member types', async () => {
     const { foods } = await setup({ withRecents: false })
