@@ -7,6 +7,8 @@ import { BackArrow } from '../BackArrow.tsx'
 import { StatusScreen } from '../StatusScreen.tsx'
 import { errorMessage } from '../error-message.ts'
 import type { Foods, SavedFood } from '../foods/foods.ts'
+import { estimatedMark } from '../foods/EstimatedMark.tsx'
+import { matches } from '../foods/matches.ts'
 import { supportingLine } from '../foods/supporting-line.ts'
 import { FoodForm } from './FoodForm.tsx'
 
@@ -20,12 +22,6 @@ export interface FoodsScreenProps {
   onCloseForm: () => void
   /** Called when the Member leaves the Foods for where they came from. */
   onLeave: () => void
-}
-
-/** Whether the query, ignoring case and surrounding space, appears in the Food's name or place. */
-function matches(food: SavedFood, query: string): boolean {
-  const needle = query.trim().toLowerCase()
-  return food.name.toLowerCase().includes(needle) || (food.place?.toLowerCase().includes(needle) ?? false)
 }
 
 /** The Household's Foods: listed by name with place and per-Serving kcal, Estimated ones marked. */
@@ -70,7 +66,7 @@ export function FoodsScreen({ foods, form, onOpenForm, onCloseForm, onLeave }: F
               headline={food.name}
               supporting={supportingLine(food)}
               onActivate={() => onOpenForm(food.id)}
-              trailing={food.estimated ? <span>Estimated</span> : undefined}
+              trailing={estimatedMark(food.estimated)}
             />
           ))}
         </ul>

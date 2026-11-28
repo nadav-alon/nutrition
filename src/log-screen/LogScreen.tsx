@@ -7,6 +7,8 @@ import type { Day } from '../day.ts'
 import type { EstimateLink } from '../estimate-link.ts'
 import type { Foods, SavedFood } from '../foods/foods.ts'
 import { BackArrow } from '../BackArrow.tsx'
+import { estimatedMark } from '../foods/EstimatedMark.tsx'
+import { matches } from '../foods/matches.ts'
 import { supportingLine } from '../foods/supporting-line.ts'
 import { errorMessage } from '../error-message.ts'
 import type { LogEntry, LogStore } from '../log/log-store.ts'
@@ -31,23 +33,41 @@ export interface LogScreenProps {
   estimate?: EstimateLink
 }
 
-/** Whether `food`'s name or place contains `query`, ignoring case and surrounding whitespace; an empty query matches nothing. */
-function matches(food: SavedFood, query: string): boolean {
-  const needle = query.trim().toLowerCase()
-  if (needle === '') return false
-  return food.name.toLowerCase().includes(needle) || (food.place?.toLowerCase().includes(needle) ?? false)
+/** What a Recent's row shows and what picking it confirms, resolved once from the Recent and the live Foods. */
+interface RecentRow {
+  key: string
+  name: string
+  place?: string
+  perServing: nutrition.Nutrition
+  estimated: boolean
+  picked: Picked
 }
 
-/** The supporting line of a Recent's row: place and kcal of one Serving, as on the Foods screen. */
-function recentSupportingLine(recent: Recent, foodsById: ReadonlyMap<nutrition.FoodId, SavedFood>): string | undefined {
-  if (recent.kind === 'quick') return supportingLine(recent)
+/** The confirm step's subject for a saved Food. */
+function pickedFood(food: SavedFood): Picked {
+  return {
+    name: food.name,
+    source: { kind: 'food', foodId: food.id },
+    perServing: food.perServing,
+    servingLabel: food.servingLabel,
+  }
+}
+
+/** A Recent as a row; undefined when it is a Food that is no longer there. */
+function recentRow(recent: Recent, foodsById: ReadonlyMap<nutrition.FoodId, SavedFood>): RecentRow | undefined {
+  if (recent.kind === 'quick') {
+    const estimated = recent.estimated === true
+    return {
+      key: `quick:${recent.name}`,
+      name: recent.name,
+      perServing: recent.perServing,
+      estimated,
+      picked: { name: recent.name, source: { kind: 'quick' }, perServing: recent.perServing, ...(estimated && { estimated: true as const }) },
+    }
+  }
   const food = foodsById.get(recent.foodId)
-  return food && supportingLine(food)
-}
-
-/** Whether a Recent's Nutrition is an estimate. */
-function recentEstimated(recent: Recent, foodsById: ReadonlyMap<nutrition.FoodId, SavedFood>): boolean {
-  return recent.kind === 'quick' ? recent.estimated === true : (foodsById.get(recent.foodId)?.estimated ?? false)
+  if (!food) return undefined
+  return { key: food.id, name: food.name, place: food.place, perServing: food.perServing, estimated: food.estimated, picked: pickedFood(food) }
 }
 
 /** Which step of logging the screen is on: choosing what to log, confirming a pick, or typing a Quick Entry. */
@@ -82,37 +102,11 @@ export function LogScreen({ log, foods, day, now, onDone, estimate }: LogScreenP
   }
 
   const [query, setQuery] = useState('')
-  const found = savedFoods.filter((food) => matches(food, query))
+  const found = query.trim() === '' ? [] : savedFoods.filter((food) => matches(food, query))
   const foodsById = new Map(savedFoods.map((food) => [food.id, food]))
-  const offered: readonly Recent[] = recents(recentEntries, foodsById)
+  const offered = recents(recentEntries, foodsById).flatMap((recent) => recentRow(recent, foodsById) ?? [])
 
-  const pickFood = (food: SavedFood) =>
-    enter({
-      kind: 'confirm',
-      picked: {
-        name: food.name,
-        source: { kind: 'food', foodId: food.id },
-        perServing: food.perServing,
-        servingLabel: food.servingLabel,
-      },
-    })
-  const pickRecent = (recent: Recent) => {
-    if (recent.kind === 'quick') {
-      enter({
-        kind: 'confirm',
-        picked: {
-          name: recent.name,
-          source: { kind: 'quick' },
-          perServing: recent.perServing,
-          ...(recent.estimated && { estimated: true as const }),
-        },
-      })
-      return
-    }
-    const food = foodsById.get(recent.foodId)
-    if (food) pickFood(food)
-  }
-
+  const pickFood = (food: SavedFood) => enter({ kind: 'confirm', picked: pickedFood(food) })
   const backToChoosing = stepHistory.back
   const saved = stepHistory.finish
   if (mode.kind === 'confirm') {
@@ -150,7 +144,7 @@ export function LogScreen({ log, foods, day, now, onDone, estimate }: LogScreenP
                   headline={food.name}
                   supporting={supportingLine(food)}
                   onActivate={() => pickFood(food)}
-                  trailing={food.estimated ? <span>Estimated</span> : undefined}
+                  trailing={estimatedMark(food.estimated)}
                 />
               ))}
             </ul>
@@ -162,13 +156,13 @@ export function LogScreen({ log, foods, day, now, onDone, estimate }: LogScreenP
             <section aria-labelledby="recents-heading">
               <h3 id="recents-heading">Recents</h3>
               <ul class="entry-list">
-                {offered.map((recent) => (
+                {offered.map((row) => (
                   <ListRow
-                    key={recent.kind === 'food' ? recent.foodId : `quick:${recent.name}`}
-                    headline={recent.name}
-                    supporting={recentSupportingLine(recent, foodsById)}
-                    onActivate={() => pickRecent(recent)}
-                    trailing={recentEstimated(recent, foodsById) ? <span>Estimated</span> : undefined}
+                    key={row.key}
+                    headline={row.name}
+                    supporting={supportingLine(row)}
+                    onActivate={() => enter({ kind: 'confirm', picked: row.picked })}
+                    trailing={estimatedMark(row.estimated)}
                   />
                 ))}
               </ul>
