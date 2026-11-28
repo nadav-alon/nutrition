@@ -5,6 +5,7 @@ import { manifest } from '../src/pwa-manifest.ts'
 import { colourRoleHex, seedColour } from 'household-ui/ui/colourRoles.ts'
 import { SEED } from '../src/seed.ts'
 import { renderIcon } from './app-icons.ts'
+import { iconPath, parseIconSrc } from '../src/icon-src.ts'
 
 const seedPixel = `${SEED.slice(1)}ff`
 const glyphPixel = `${colourRoleHex(seedColour(SEED), 'onPrimary', 'light').slice(1)}ff`
@@ -16,7 +17,7 @@ function decode(png: Buffer): { width: number; rows: Buffer[] } {
   expect(png[24], 'bit depth').toBe(8)
   expect(png[25], 'colour type RGBA').toBe(6)
   const idat: Buffer[] = []
-  for (let at = 8; at < png.length; ) {
+  for (let at = 8; at < png.length;) {
     const length = png.readUInt32BE(at)
     if (png.toString('ascii', at + 4, at + 8) === 'IDAT') idat.push(png.subarray(at + 8, at + 8 + length))
     at += length + 12
@@ -53,19 +54,19 @@ describe('PWA icons', () => {
   it('are the apple rendered from its SVGs at every size the manifest lists, maskable included', () => {
     expect(manifest.icons!.length).toBe(4)
     for (const icon of manifest.icons!) {
-      expect(readFileSync(`public/${icon.src}`).equals(renderIcon(icon)), icon.src).toBe(true)
+      expect(readFileSync(iconPath(parseIconSrc(icon.src))).equals(renderIcon(icon)), icon.src).toBe(true)
     }
   })
 
   it('are never a single flat colour: the glyph stands out from the seed', () => {
     for (const icon of manifest.icons!) {
-      expect(colours(readFileSync(`public/${icon.src}`)).size, icon.src).toBeGreaterThan(1)
+      expect(colours(readFileSync(iconPath(parseIconSrc(icon.src)))).size, icon.src).toBeGreaterThan(1)
     }
   })
 
   it('draw the glyph in the on-primary colour over the seed', () => {
     for (const icon of manifest.icons!) {
-      const seen = colours(readFileSync(`public/${icon.src}`))
+      const seen = colours(readFileSync(iconPath(parseIconSrc(icon.src))))
       expect(seen, icon.src).toContain(seedPixel)
       expect(seen, icon.src).toContain(glyphPixel)
     }
@@ -73,7 +74,7 @@ describe('PWA icons', () => {
 
   it('keep the maskable glyph inside the 80% safe zone: everything outside that circle is the seed', () => {
     for (const icon of manifest.icons!.filter((i) => i.purpose === 'maskable')) {
-      const { width, rows } = decode(readFileSync(`public/${icon.src}`))
+      const { width, rows } = decode(readFileSync(iconPath(parseIconSrc(icon.src))))
       const centre = width / 2
       let glyph = 0
       rows.forEach((row, y) => {
