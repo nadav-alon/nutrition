@@ -87,7 +87,7 @@ export function App({ log, foods, targets, settings }: AppPorts) {
           onLeave={() => back(home)}
         />
       )}
-      {route.name === 'targets' && <TargetsScreen port={targets} settings={settings} onLeave={() => back(home)} />}
+      {route.name === 'targets' && <TargetsScreen targets={targets} settings={settings} onLeave={() => back(home)} />}
     </TopAppBar>
   )
 }

@@ -52,7 +52,7 @@ function toTargets(draft: Draft): Targets {
 const discardPrompt = 'Discard your unsaved changes?'
 
 export type TargetsScreenProps = {
-  port: TargetsPort
+  targets: TargetsPort
   /** Where the Push to Google Health switch is read and written; it applies at once, apart from the Targets form. */
   settings: SettingsPort
   /** Called when the Member leaves the screen; with unsaved changes, only once they agree to discard them. */
@@ -60,7 +60,7 @@ export type TargetsScreenProps = {
 }
 
 /** Sets the Member's daily Targets; a field left empty means no Target for that macro. */
-export function TargetsScreen({ port, settings, onLeave }: TargetsScreenProps) {
+export function TargetsScreen({ targets: port, settings, onLeave }: TargetsScreenProps) {
   const [draft, setDraft] = useState<Draft | null>(null)
   /** The fields as last loaded or saved, which unsaved changes are measured against. */
   const [saved, setSaved] = useState<Draft | null>(null)
