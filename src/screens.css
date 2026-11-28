@@ -89,6 +89,8 @@ main.screen.sign-in .ui-button {
   display: flex;
   justify-content: flex-end;
   padding: var(--md-sys-spacing-2) 0;
+  /* Clear a gesture-navigation bar where the page extends under it. */
+  padding-bottom: calc(var(--md-sys-spacing-2) + env(safe-area-inset-bottom, 0px));
   background: var(--md-sys-color-surface);
 }
 
