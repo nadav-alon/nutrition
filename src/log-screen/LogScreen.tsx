@@ -78,7 +78,12 @@ export function LogScreen({ log, foods, day, now, onDone, estimate }: LogScreenP
     if (recent.kind === 'quick') {
       setMode({
         kind: 'confirm',
-        picked: { name: recent.name, source: { kind: 'quick' }, perServing: recent.perServing },
+        picked: {
+          name: recent.name,
+          source: { kind: 'quick' },
+          perServing: recent.perServing,
+          ...(recent.estimated && { estimated: true as const }),
+        },
       })
       return
     }
