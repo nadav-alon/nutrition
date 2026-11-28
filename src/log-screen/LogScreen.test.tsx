@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/preact'
+import { fireEvent, screen, waitFor, within } from '@testing-library/preact'
 import { describe, expect, it, vi } from 'vitest'
 import { nutrition } from 'data-platform'
 import { day, dayEnd, dayStart, type Day } from '../day.ts'
@@ -8,6 +8,7 @@ import { fakeLogStore } from '../log/fake-log-store.ts'
 import type { LogEntry, LogStore } from '../log/log-store.ts'
 import { quickToast, schnitzel } from '../log/log-store.contract.ts'
 import type { EstimateLink } from '../estimate-link.ts'
+import { expectOneBackInAppBar, renderInAppBar } from '../test/render-in-app-bar.tsx'
 import { LogScreen } from './LogScreen.tsx'
 
 const { grams, kcal } = nutrition
@@ -38,7 +39,7 @@ async function setup({
     for (const extra of extraEntries) await log.create(extra)
   }
   const onDone = vi.fn()
-  const view = render(<LogScreen log={log} foods={foods} day={viewed} now={NOW} onDone={onDone} />)
+  const view = renderInAppBar(<LogScreen log={log} foods={foods} day={viewed} now={NOW} onDone={onDone} />)
   return { foods, log, foodId, onDone, ...view }
 }
 
@@ -74,14 +75,14 @@ describe('LogScreen Recents, beyond the list', () => {
       onError?.(new Error('foods offline'))
       return () => {}
     })
-    render(<LogScreen log={fakeLogStore()} foods={foods} day={TODAY} now={NOW} onDone={vi.fn()} />)
+    renderInAppBar(<LogScreen log={fakeLogStore()} foods={foods} day={TODAY} now={NOW} onDone={vi.fn()} />)
     expect(await screen.findByRole('alert')).toHaveTextContent('foods offline')
   })
 
   it('shows a failure to load Recents', async () => {
     const log = fakeLogStore()
     vi.spyOn(log, 'recent').mockRejectedValue(new Error('recents offline'))
-    render(<LogScreen log={log} foods={fakeFoods()} day={TODAY} now={NOW} onDone={vi.fn()} />)
+    renderInAppBar(<LogScreen log={log} foods={fakeFoods()} day={TODAY} now={NOW} onDone={vi.fn()} />)
     expect(await screen.findByRole('alert')).toHaveTextContent('recents offline')
   })
 })
@@ -458,7 +459,7 @@ describe('LogScreen opened from an estimate link', () => {
     const foods: Foods = fakeFoods()
     const log: LogStore = fakeLogStore()
     const onDone = vi.fn()
-    render(<LogScreen log={log} foods={foods} day={TODAY} now={NOW} onDone={onDone} estimate={estimate} />)
+    renderInAppBar(<LogScreen log={log} foods={foods} day={TODAY} now={NOW} onDone={onDone} estimate={estimate} />)
     return { foods, log, onDone }
   }
 
@@ -507,5 +508,21 @@ describe('LogScreen opened from an estimate link', () => {
     await setupLink({ ...full, name: '', place: '', kcal: '', proteinG: '', carbsG: '', fatG: '', servings: '1', estimated: false })
     expect(screen.getByLabelText('Name')).toHaveValue('')
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+  })
+})
+
+describe('LogScreen back arrow', () => {
+  it('has one Back on each step', async () => {
+    renderInAppBar(<LogScreen log={fakeLogStore()} foods={fakeFoods()} day={TODAY} now={NOW} onDone={vi.fn()} />)
+    expectOneBackInAppBar()
+    fireEvent.click(screen.getByRole('button', { name: 'Quick entry' }))
+    expectOneBackInAppBar()
+  })
+
+  it('has one Back on the Confirm step', async () => {
+    await setup()
+    fireEvent.click(await screen.findByRole('button', { name: /Schnitzel plate/ }))
+    await screen.findByLabelText('Servings')
+    expectOneBackInAppBar()
   })
 })

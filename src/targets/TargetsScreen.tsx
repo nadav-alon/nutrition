@@ -5,6 +5,8 @@ import type { SettingsPort } from '../settings/settings-port.ts'
 import type { Targets, TargetsPort } from './targets-port.ts'
 import { GoogleHealthSwitch } from './GoogleHealthSwitch.tsx'
 import { Button } from 'household-ui/ui/Button.tsx'
+import { BackArrow } from '../BackArrow.tsx'
+import { StatusScreen } from '../StatusScreen.tsx'
 import { TextField } from 'household-ui/ui/TextField.tsx'
 
 type FieldKey = Extract<'kcal' | 'proteinG' | 'carbsG' | 'fatG', keyof Targets>
@@ -101,7 +103,15 @@ export function TargetsScreen({ targets: port, settings, onLeave }: TargetsScree
   }, [dirty])
 
   if (draft === null) {
-    return portError !== null ? <main class="screen targets" role="alert">{portError}</main> : <main class="screen targets" />
+    return portError !== null ? (
+      <StatusScreen onBack={onLeave} alert>
+        {portError}
+      </StatusScreen>
+    ) : (
+      <StatusScreen onBack={onLeave}>
+        <p>Loading…</p>
+      </StatusScreen>
+    )
   }
   const current = draft
 
@@ -129,9 +139,7 @@ export function TargetsScreen({ targets: port, settings, onLeave }: TargetsScree
 
   return (
     <main class="screen targets">
-      <Button variant="text" onClick={handleBack}>
-        Back
-      </Button>
+      <BackArrow onClick={handleBack} />
       <form class="stack" noValidate onSubmit={handleSubmit}>
         {FIELDS.map(({ key, label }) => (
           <TextField

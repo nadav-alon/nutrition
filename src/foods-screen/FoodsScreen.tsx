@@ -3,6 +3,8 @@ import { useEffect, useState } from 'preact/hooks'
 import { Button } from 'household-ui/ui/Button.tsx'
 import { ListRow } from 'household-ui/ui/ListRow.tsx'
 import { TextField } from 'household-ui/ui/TextField.tsx'
+import { BackArrow } from '../BackArrow.tsx'
+import { StatusScreen } from '../StatusScreen.tsx'
 import { errorMessage } from '../error-message.ts'
 import type { Foods, SavedFood } from '../foods/foods.ts'
 import { FoodForm } from './FoodForm.tsx'
@@ -41,19 +43,17 @@ export function FoodsScreen({ foods, form, onOpenForm, onCloseForm, onLeave }: F
     return foods.watch(setList, (error) => setListError(errorMessage(error, 'Could not load Foods.')))
   }, [foods])
 
-  if (listError !== null) return <main class="screen foods" role="alert">{listError}</main>
-  if (list === null) return <main class="screen foods" />
+  const leave = form === undefined ? onLeave : onCloseForm
+  if (listError !== null) return <StatusScreen onBack={leave} alert>{listError}</StatusScreen>
+  if (list === null) return <StatusScreen onBack={leave} />
   if (form === 'new') return <FoodForm key="new" foods={foods} onDone={onCloseForm} />
   if (form !== undefined) {
     const food = list.find((candidate) => candidate.id === form)
     if (food === undefined) {
       return (
-        <main class="screen foods">
+        <StatusScreen onBack={onCloseForm}>
           <p>That Food is no longer there.</p>
-          <Button variant="tonal" onClick={onCloseForm}>
-            Back to Foods
-          </Button>
-        </main>
+        </StatusScreen>
       )
     }
     return <FoodForm key={food.id} foods={foods} food={food} onDone={onCloseForm} />
@@ -61,6 +61,7 @@ export function FoodsScreen({ foods, form, onOpenForm, onCloseForm, onLeave }: F
   const shown = list.filter((food) => matches(food, query))
   return (
     <main class="screen foods">
+      <BackArrow onClick={onLeave} />
       <TextField label="Search" type="search" value={query} onInput={(event) => setQuery(event.currentTarget.value)} />
       {list.length === 0 ? (
         <p>No Foods yet.</p>
@@ -81,9 +82,6 @@ export function FoodsScreen({ foods, form, onOpenForm, onCloseForm, onLeave }: F
       )}
       <Button variant="filled" onClick={() => onOpenForm('new')}>
         Add food
-      </Button>
-      <Button variant="tonal" onClick={onLeave}>
-        Back
       </Button>
     </main>
   )

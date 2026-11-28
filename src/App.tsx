@@ -1,6 +1,7 @@
 import { TopAppBar, TopAppBarActions } from 'household-ui/shell/TopAppBar.tsx'
 import { Button } from 'household-ui/ui/Button.tsx'
 import type { nutrition } from 'data-platform'
+import { StatusScreen } from './StatusScreen.tsx'
 import { AccountAction } from './gate/account.tsx'
 import type { Day } from './day.ts'
 import { DayScreen } from './day-screen/DayScreen.tsx'
@@ -28,11 +29,13 @@ export interface AppPorts {
 /** The signed-in app: the Member's Day as home, with the screens reached from it. */
 export function App({ log, foods, targets, settings }: AppPorts) {
   const { now, today } = useNow()
-  const [route, go, back] = useRoute(today)
+  const [route, go, back, backToAny] = useRoute(today)
   const home: Route = { name: 'day', day: today }
+  /** Back to the Day the Member came from, whichever it was, else on to today's. */
+  const leaveToDay = () => backToAny(home, (from) => from.name === 'day')
   const backToDay = (day: Day) => back({ name: 'day', day })
   return (
-    <TopAppBar title="Nutrition">
+    <TopAppBar title={titleOf(route)}>
       <TopAppBarActions>
         <nav class="app-nav" aria-label="Main">
           <Button
@@ -84,37 +87,53 @@ export function App({ log, foods, targets, settings }: AppPorts) {
           form={route.form}
           onOpenForm={(form) => go({ name: 'foods', form })}
           onCloseForm={() => back({ name: 'foods' })}
-          onLeave={() => back(home)}
+          onLeave={leaveToDay}
         />
       )}
-      {route.name === 'targets' && <TargetsScreen targets={targets} settings={settings} onLeave={() => back(home)} />}
+      {route.name === 'targets' && <TargetsScreen targets={targets} settings={settings} onLeave={leaveToDay} />}
     </TopAppBar>
   )
+}
+
+/** The app bar's title for `route`: the app's name on the Day, the screen's own elsewhere. */
+function titleOf(route: Route): string {
+  switch (route.name) {
+    case 'day':
+      return 'Nutrition'
+    case 'log':
+      return 'Log'
+    case 'entry':
+      return 'Log Entry'
+    case 'foods':
+      return route.form === undefined ? 'Foods' : route.form === 'new' ? 'Add food' : 'Edit food'
+    case 'targets':
+      return 'Targets'
+  }
 }
 
 /** The Log Entry `id` on `day`, found by watching the Day, so a refresh on its URL still opens it. */
 function LogEntryLoader({ log, day, id, onDone }: { log: LogStore; day: Day; id: nutrition.LogEntryId; onDone: () => void }) {
   const dayEntries = useDayEntries(log, day)
-  if (dayEntries.status === 'loading') return <p class="screen">Loading…</p>
+  if (dayEntries.status === 'loading') {
+    return (
+      <StatusScreen onBack={onDone}>
+        <p>Loading…</p>
+      </StatusScreen>
+    )
+  }
   if (dayEntries.status === 'error') {
     return (
-      <div class="screen" role="alert">
+      <StatusScreen onBack={onDone} alert>
         <p>Could not load the entry.</p>
-        <Button variant="tonal" onClick={onDone}>
-          Back to the Day
-        </Button>
-      </div>
+      </StatusScreen>
     )
   }
   const entry = dayEntries.entries.find((candidate) => candidate.id === id)
   if (entry === undefined) {
     return (
-      <div class="screen">
+      <StatusScreen onBack={onDone}>
         <p>That entry is no longer there.</p>
-        <Button variant="tonal" onClick={onDone}>
-          Back to the Day
-        </Button>
-      </div>
+      </StatusScreen>
     )
   }
   return <LogEntryScreen store={log} entry={entry} onDone={onDone} />

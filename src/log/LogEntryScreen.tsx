@@ -4,6 +4,7 @@ import { nutrition } from 'data-platform'
 import { Button } from 'household-ui/ui/Button.tsx'
 import { Select } from 'household-ui/ui/Select.tsx'
 import { TextField } from 'household-ui/ui/TextField.tsx'
+import { BackArrow } from '../BackArrow.tsx'
 import { errorMessage } from '../error-message.ts'
 import type { LogEntry, LogEntryEdit, LogStore } from './log-store.ts'
 import { fromLocalInput, toLocalInput } from './local-datetime.ts'
@@ -65,9 +66,7 @@ export function LogEntryScreen({ store, entry, onDone }: LogEntryScreenProps) {
   const { kcal, proteinG, carbsG, fatG } = entry.nutrition
   return (
     <main class="screen log-entry">
-      <Button variant="text" onClick={() => confirmLeave() && onDone()}>
-        Back
-      </Button>
+      <BackArrow onClick={() => confirmLeave() && onDone()} />
       <h2>{entry.name}</h2>
       <dl class="totals">
         <dt>Calories</dt>

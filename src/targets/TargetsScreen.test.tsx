@@ -1,10 +1,11 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/preact'
+import { fireEvent, screen, waitFor } from '@testing-library/preact'
 import { describe, expect, it, vi } from 'vitest'
 import { nutrition } from 'data-platform'
 import { fakeTargetsPort } from './fake-targets-port.ts'
 import type { Targets, TargetsPort } from './targets-port.ts'
 import type { SettingsPort } from '../settings/settings-port.ts'
 import { fakeSettingsPort } from '../settings/fake-settings-port.ts'
+import { expectOneBackInAppBar, renderInAppBar } from '../test/render-in-app-bar.tsx'
 import { TargetsScreen } from './TargetsScreen.tsx'
 
 /** Renders the screen; a port left out is a fresh fake. */
@@ -13,7 +14,7 @@ function renderScreen({
   settings = fakeSettingsPort(),
   onLeave = vi.fn(),
 }: { port?: TargetsPort; settings?: SettingsPort; onLeave?: () => void } = {}) {
-  return render(<TargetsScreen targets={port} settings={settings} onLeave={onLeave} />)
+  return renderInAppBar(<TargetsScreen targets={port} settings={settings} onLeave={onLeave} />, 'Targets')
 }
 
 function type(label: string, value: string) {
@@ -40,6 +41,16 @@ describe('TargetsScreen', () => {
     expect(screen.getByLabelText('Protein (g)')).toHaveValue(150)
     expect(screen.getByLabelText('Carbs (g)')).toHaveValue(null)
     expect(screen.getByLabelText('Fat (g)')).toHaveValue(null)
+  })
+
+  it('shows Loading… until the Targets arrive, with its one Back already there', async () => {
+    const onLeave = vi.fn()
+    const never: TargetsPort = { ...fakeTargetsPort(), subscribe: () => () => {} }
+    renderScreen({ port: never, onLeave })
+    expect(screen.getByText('Loading…')).toBeInTheDocument()
+    expectOneBackInAppBar()
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(onLeave).toHaveBeenCalled()
   })
 
   it('shows empty fields when no Targets are set', async () => {
