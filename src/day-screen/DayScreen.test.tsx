@@ -311,18 +311,22 @@ describe('DayScreen robustness', () => {
 })
 
 describe('DayScreen Today shortcut', () => {
+  /** The Today shortcut: a button named Today that is not the Day heading's own. */
+  const shortcut = () => screen.queryAllByRole('button', { name: 'Today' }).filter((button) => !button.closest('h2'))
+
   it('is absent on today', () => {
     renderScreen()
-    expect(screen.queryByRole('button', { name: 'Today' })).toBeNull()
+    expect(shortcut()).toHaveLength(0)
   })
 
   it('shows on any other Day and returns to today in one tap', () => {
     renderScreen()
     fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
     fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Today' }))
+    expect(shortcut()).toHaveLength(1)
+    fireEvent.click(shortcut()[0]!)
     expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Today' })).toBeNull()
+    expect(shortcut()).toHaveLength(0)
   })
 })
 
