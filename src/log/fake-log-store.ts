@@ -1,6 +1,7 @@
 import { nutrition } from 'data-platform'
 import { applyEdit } from './apply-edit.ts'
 import { servings } from './servings.ts'
+import { unsyncedEntry } from './unsynced-entry.ts'
 import type { LogEntry, LogStore, NewLogEntry, Unsubscribe } from './log-store.ts'
 
 interface Watcher {
@@ -49,12 +50,32 @@ export function fakeLogStore(): LogStore {
     async update(id, edit) {
       const entry = entries.get(id)
       if (!entry || deleted.has(id)) throw new Error(`No live Log Entry ${id}`)
-      entries.set(id, applyEdit(entry, edit))
+      const edited = applyEdit(entry, edit)
+      entries.set(id, edited)
       notify()
     },
     async softDelete(id) {
       deleted.add(id)
       notify()
+    },
+    async recordPushed(id, googleHealthId) {
+      const entry = entries.get(id)
+      if (!entry) throw new Error(`No Log Entry ${id}`)
+      const { googleHealthStale: _stale, ...matching } = entry
+      entries.set(id, { ...matching, googleHealthId })
+      notify()
+    },
+    async recordRemoved(id) {
+      const entry = entries.get(id)
+      if (!entry) throw new Error(`No Log Entry ${id}`)
+      const { googleHealthId: _id, googleHealthStale: _stale, ...neverPushed } = entry
+      entries.set(id, neverPushed)
+      notify()
+    },
+    async unsynced() {
+      return [...entries.values()]
+        .sort((a, b) => a.eatenAt.getTime() - b.eatenAt.getTime())
+        .flatMap((entry) => unsyncedEntry(entry, deleted.has(entry.id)) ?? [])
     },
   }
 }
