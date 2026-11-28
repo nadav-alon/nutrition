@@ -3,6 +3,7 @@ import type { JSX } from 'preact'
 import { nutrition } from 'data-platform'
 import { Button } from 'household-ui/ui/Button.tsx'
 import { TextField } from 'household-ui/ui/TextField.tsx'
+import { BackArrow } from '../BackArrow.tsx'
 import { errorMessage } from '../error-message.ts'
 import { useLeaveGuard } from '../log/use-leave-guard.ts'
 import type { FoodChanges, FoodFields, Foods, SavedFood } from '../foods/foods.ts'
@@ -121,9 +122,7 @@ export function FoodForm({ foods, food, onDone }: FoodFormProps) {
 
   return (
     <main class="screen food-form">
-      <Button variant="text" onClick={() => confirmLeave() && onDone()}>
-        Back
-      </Button>
+      <BackArrow onClick={() => confirmLeave() && onDone()} />
       <form class="stack" noValidate onSubmit={handleSubmit}>
         <TextField label="Name" value={draft.name} error={errors.name} onInput={(event) => setDraft({ ...draft, name: event.currentTarget.value })} />
         <TextField label="Place" value={draft.place} onInput={(event) => setDraft({ ...draft, place: event.currentTarget.value })} />
