@@ -309,3 +309,19 @@ describe('DayScreen robustness', () => {
     expect(screen.queryByRole('meter', { name: 'Calories' })).not.toBeInTheDocument()
   })
 })
+
+describe('DayScreen Today shortcut', () => {
+  it('is absent on today', () => {
+    renderScreen()
+    expect(screen.queryByRole('button', { name: 'Today' })).toBeNull()
+  })
+
+  it('shows on any other Day and returns to today in one tap', () => {
+    renderScreen()
+    fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Today' }))
+    expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Today' })).toBeNull()
+  })
+})

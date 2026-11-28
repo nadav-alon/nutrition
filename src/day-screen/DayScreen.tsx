@@ -111,6 +111,11 @@ export function DayScreen({ log, targets, now, day: viewed, onDayChange, onOpenE
           onClick={() => onDayChange(nextDay(viewed, now))}
         />
       </header>
+      {viewed === today ? null : (
+        <Button variant="text" onClick={() => onDayChange(today)}>
+          Today
+        </Button>
+      )}
       {targetsState.status === 'failed' ? <p>Targets unavailable.</p> : null}
       {noTargets ? (
         <p>
