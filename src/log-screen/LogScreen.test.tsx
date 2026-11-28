@@ -203,12 +203,12 @@ describe('LogScreen confirm step', () => {
 
   it('logging an Estimated Food stores estimated on the entry', async () => {
     const { foods, log, onDone } = await setup({ withRecents: false })
-    await foods.add({ ...schnitzelFields, name: 'Guessed stew', estimated: true })
+    await foods.add({ ...schnitzelFields, name: 'Stew', estimated: true })
     fireEvent.input(screen.getByLabelText('Search foods'), { target: { value: 'stew' } })
-    fireEvent.click(await screen.findByRole('button', { name: /Guessed stew/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Stew/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1))
-    expect(entriesOn(log, TODAY)[0]).toMatchObject({ name: 'Guessed stew', source: { kind: 'food' }, estimated: true })
+    expect(entriesOn(log, TODAY)[0]).toMatchObject({ name: 'Stew', source: { kind: 'food' }, estimated: true })
   })
 
   it('logging a Food that is not Estimated stores no estimated flag', async () => {
@@ -220,13 +220,14 @@ describe('LogScreen confirm step', () => {
     expect(logged).not.toHaveProperty('estimated')
   })
 
-  it('keeps the flag on an existing entry when the Food is corrected afterwards', async () => {
+  it('guards against re-deriving the mark from the Food: a corrected Food leaves the entry Estimated', async () => {
     const { foods, log, onDone } = await setup({ withRecents: false })
-    const id = await foods.add({ ...schnitzelFields, name: 'Guessed stew', estimated: true })
+    const id = await foods.add({ ...schnitzelFields, name: 'Stew', estimated: true })
     fireEvent.input(screen.getByLabelText('Search foods'), { target: { value: 'stew' } })
-    fireEvent.click(await screen.findByRole('button', { name: /Guessed stew/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /Stew/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1))
+    // The entry is a snapshot; this fails only if the mark is ever read back from the Food instead of stored on the entry.
     await foods.edit(id, { estimated: false })
     expect(entriesOn(log, TODAY)[0]).toMatchObject({ estimated: true })
   })
@@ -587,6 +588,14 @@ describe('LogScreen opened from an estimate link', () => {
     expect(entry).toEqual(expect.objectContaining({ name: 'Shawarma plate', source: { kind: 'food', foodId: existingId }, servings: 1.5 }))
     expect(entry?.nutrition.kcal).toBe(750)
     expect(entry?.estimated).toBeUndefined()
+  })
+
+  it('logs an Estimated existing Food Estimated, whatever the link says', async () => {
+    const { foods, log, onDone } = await setupLink({ ...full, estimated: false })
+    const existingId = await foods.add({ ...schnitzelFields, name: 'Shawarma plate', place: 'Hummus Bar', estimated: true })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    expect(entriesOn(log, TODAY)).toEqual([expect.objectContaining({ source: { kind: 'food', foodId: existingId }, estimated: true })])
   })
 
   it('matches the existing Food ignoring case and surrounding space', async () => {
