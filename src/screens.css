@@ -69,3 +69,14 @@ main.screen.sign-in .ui-button {
   margin: 0;
   text-align: center;
 }
+
+/* The Day heading is a button that opens the date picker; it reads as the heading. */
+.day-heading {
+  min-height: 3rem;
+  padding: 0 var(--md-sys-spacing-2);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}

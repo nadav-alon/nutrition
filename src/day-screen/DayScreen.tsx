@@ -5,7 +5,7 @@ import { IconButton } from 'household-ui/ui/IconButton.tsx'
 import { ListRow } from 'household-ui/ui/ListRow.tsx'
 import ChevronLeft from '~icons/material-symbols/chevron-left'
 import ChevronRight from '~icons/material-symbols/chevron-right'
-import { dayLabel, dayOf, nextDay, previousDay, type Day } from '../day.ts'
+import { dayLabel, dayOf, isDay, nextDay, previousDay, type Day } from '../day.ts'
 import { roundForDisplay } from '../foods/supporting-line.ts'
 import type { LogEntry, LogStore } from '../log/log-store.ts'
 import { useDayEntries } from '../log/use-day-entries.ts'
@@ -84,6 +84,7 @@ function MacroBar({ macro: { label, unit }, eaten: rawEaten, target }: MacroBarP
 /** One Day's Log Entries against the Member's Targets; stepping to earlier Days. */
 export function DayScreen({ log, targets, now, day: viewed, onDayChange, onOpenEntry, onLog, onSetTargets }: DayScreenProps) {
   const today = dayOf(now)
+  const [picking, setPicking] = useState(false)
   const dayEntries = useDayEntries(log, viewed)
   const [targetsState, setTargetsState] = useState<TargetsState>({ status: 'loading' })
   useEffect(() => {
@@ -103,7 +104,28 @@ export function DayScreen({ log, targets, now, day: viewed, onDayChange, onOpenE
     <section class="screen day-screen">
       <header class="day-nav">
         <IconButton symbol={ChevronLeft} label="Previous day" onClick={() => onDayChange(previousDay(viewed))} />
-        <h2>{dayLabel(viewed, now)}</h2>
+        <h2>
+          {picking ? (
+            <input
+              type="date"
+              aria-label="Pick a day"
+              value={viewed}
+              max={today}
+              autoFocus
+              onInput={(event) => {
+                const chosen = event.currentTarget.value
+                if (!isDay(chosen)) return
+                setPicking(false)
+                onDayChange(chosen > today ? today : chosen)
+              }}
+              onBlur={() => setPicking(false)}
+            />
+          ) : (
+            <button type="button" class="day-heading" title="Pick a day" onClick={() => setPicking(true)}>
+              {dayLabel(viewed, now)}
+            </button>
+          )}
+        </h2>
         <IconButton
           symbol={ChevronRight}
           label="Next day"
