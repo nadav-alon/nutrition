@@ -6,6 +6,7 @@ import { ListRow } from 'household-ui/ui/ListRow.tsx'
 import ChevronLeft from '~icons/material-symbols/chevron-left'
 import ChevronRight from '~icons/material-symbols/chevron-right'
 import { dayLabel, dayOf, nextDay, previousDay, type Day } from '../day.ts'
+import { roundForDisplay } from '../foods/supporting-line.ts'
 import type { LogEntry, LogStore } from '../log/log-store.ts'
 import { useDayEntries } from '../log/use-day-entries.ts'
 import type { Targets, TargetsPort } from '../targets/targets-port.ts'
@@ -46,11 +47,6 @@ const MACROS: readonly { key: MacroKey; label: string; unit: 'kcal' | 'g' }[] = 
 /** The Member's Targets as the subscription has reported them: not yet, unreadable, or loaded (`null` when none are saved). */
 type TargetsState = { status: 'loading' } | { status: 'failed' } | { status: 'loaded'; targets: Targets | null }
 
-/** Display rounding: one decimal, so summed floats never print as `30.000000000000004`. */
-function round(value: number): number {
-  return Math.round(value * 10) / 10
-}
-
 interface MacroBarProps {
   macro: (typeof MACROS)[number]
   eaten: number
@@ -58,15 +54,15 @@ interface MacroBarProps {
 }
 
 function MacroBar({ macro: { label, unit }, eaten: rawEaten, target }: MacroBarProps) {
-  const eaten = round(rawEaten)
+  const eaten = roundForDisplay(rawEaten)
   const over = target !== undefined && eaten > target
   const eatenFigure = `${eaten} ${unit} eaten`
   const figures =
     target === undefined
       ? eatenFigure
       : over
-        ? `${eatenFigure} · ${round(eaten - target)} ${unit} over`
-        : `${eatenFigure} · ${round(target - eaten)} ${unit} left`
+        ? `${eatenFigure} · ${roundForDisplay(eaten - target)} ${unit} over`
+        : `${eatenFigure} · ${roundForDisplay(target - eaten)} ${unit} left`
   return (
     <div
       class={over ? 'macro-bar over' : 'macro-bar'}
@@ -154,7 +150,7 @@ export function DayScreen({ log, targets, now, day: viewed, onDayChange, onOpenE
                       <ListRow
                         key={entry.id}
                         headline={entry.name}
-                        supporting={`${entry.servings} ${entry.servings === 1 ? 'serving' : 'servings'} · ${round(entry.nutrition.kcal)} kcal`}
+                        supporting={`${entry.servings} ${entry.servings === 1 ? 'serving' : 'servings'} · ${roundForDisplay(entry.nutrition.kcal)} kcal`}
                         onActivate={() => onOpenEntry(entry)}
                       />
                     ))}
