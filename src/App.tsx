@@ -35,7 +35,7 @@ export function App({ log, foods, targets, settings }: AppPorts) {
   const leaveToDay = () => back(home, (from) => from.name === 'day')
   const backToDay = (day: Day) => back({ name: 'day', day })
   return (
-    <TopAppBar title="Nutrition">
+    <TopAppBar title={titleOf(route)}>
       <TopAppBarActions>
         <nav class="app-nav" aria-label="Main">
           <Button
@@ -93,6 +93,22 @@ export function App({ log, foods, targets, settings }: AppPorts) {
       {route.name === 'targets' && <TargetsScreen targets={targets} settings={settings} onLeave={leaveToDay} />}
     </TopAppBar>
   )
+}
+
+/** The app bar's title for `route`: the app's name on the Day, the screen's own elsewhere. */
+function titleOf(route: Route): string {
+  switch (route.name) {
+    case 'day':
+      return 'Nutrition'
+    case 'log':
+      return 'Log'
+    case 'entry':
+      return 'Log Entry'
+    case 'foods':
+      return route.form === undefined ? 'Foods' : route.form === 'new' ? 'Add food' : 'Edit food'
+    case 'targets':
+      return 'Targets'
+  }
 }
 
 /** The Log Entry `id` on `day`, found by watching the Day, so a refresh on its URL still opens it. */

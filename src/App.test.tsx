@@ -128,6 +128,34 @@ describe('App routes', () => {
     push.mockRestore()
   })
 
+  it.each([
+    ['#/foods', 'Foods'],
+    ['#/foods/new', 'Add food'],
+    ['#/targets', 'Targets'],
+    [`#/day/${today}/log`, 'Log'],
+  ])('titles %s "%s" in the app bar', (hash, title) => {
+    location.hash = hash
+    render(<App {...ports()} />)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(title)
+  })
+
+  it('titles a Food being edited "Edit food", and a Log Entry "Log Entry"', async () => {
+    const p = ports()
+    const id = await p.foods.add({
+      name: 'Apple',
+      estimated: false,
+      perServing: { kcal: nutrition.kcal(95), proteinG: nutrition.grams(0.5), carbsG: nutrition.grams(25), fatG: nutrition.grams(0.3) },
+    })
+    location.hash = `#/foods/${id}`
+    const first = render(<App {...p} />)
+    await screen.findByDisplayValue('Apple')
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Edit food')
+    first.unmount()
+    location.hash = `#/day/${today}/entry/nope`
+    render(<App {...p} />)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Log Entry')
+  })
+
   it('opens the Log screen for the viewed Day', () => {
     render(<App {...ports()} />)
     fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
