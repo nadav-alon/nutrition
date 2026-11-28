@@ -547,6 +547,25 @@ describe('LogScreen opened from an estimate link', () => {
     expect(entriesOn(log, TODAY)).toEqual([expect.objectContaining({ name: 'Shawarma plate', servings: 1.5 })])
   })
 
+  it('logs against an existing Food with the same name and place, creating no new Food', async () => {
+    const { foods, log, onDone } = await setupLink(full)
+    const existingId = await foods.add({ ...schnitzelFields, name: 'Shawarma plate', place: 'Hummus Bar' })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    expect(foodsIn(foods)).toHaveLength(1)
+    expect(entriesOn(log, TODAY)).toEqual([
+      expect.objectContaining({ name: 'Shawarma plate', source: { kind: 'food', foodId: existingId } }),
+    ])
+  })
+
+  it('still creates a Food when only the name matches an existing Food', async () => {
+    const { foods, onDone } = await setupLink(full)
+    await foods.add({ ...schnitzelFields, name: 'Shawarma plate', place: 'Other Place' })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    expect(foodsIn(foods)).toHaveLength(2)
+  })
+
   it('leaves what a partial link omits empty, blocks Save, and stays editable', async () => {
     await setupLink({ ...full, place: '', kcal: '', proteinG: '', carbsG: '', fatG: '', servings: '1', estimated: false })
     expect(screen.getByLabelText('Name')).toHaveValue('Shawarma plate')

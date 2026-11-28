@@ -6,7 +6,7 @@ import { TextField } from 'household-ui/ui/TextField.tsx'
 import type { EstimateLink } from '../estimate-link.ts'
 import { BackArrow } from '../BackArrow.tsx'
 import { errorMessage } from '../error-message.ts'
-import type { FoodFields, Foods } from '../foods/foods.ts'
+import type { FoodFields, Foods, SavedFood } from '../foods/foods.ts'
 import { useConfirmFields } from './confirm-fields.tsx'
 import { logPicked, type LogStepProps } from './log-picked.ts'
 
@@ -40,9 +40,35 @@ function toNutrition(text: MacroText): nutrition.Nutrition {
   }
 }
 
+/** The Household's Foods as they are now. */
+function currentFoods(foods: Foods): Promise<readonly SavedFood[]> {
+  return new Promise((resolve, reject) => {
+    let stop: (() => void) | undefined
+    let settled = false
+    const settle = () => {
+      settled = true
+      stop?.()
+    }
+    stop = foods.watch(
+      (list) => {
+        if (settled) return
+        settle()
+        resolve(list)
+      },
+      (error) => {
+        if (settled) return
+        settle()
+        reject(error)
+      },
+    )
+    // A listener that fired before `stop` was assigned could not stop itself.
+    if (settled) stop()
+  })
+}
+
 export type QuickEntryFormProps = LogStepProps & {
   foods: Foods
-  /** An estimate to start the form from; "Save as Food" then starts ticked. */
+  /** An estimate to start the form from; "Save as Food" then starts ticked, and saving logs against a Food of the same name and place rather than adding a duplicate. */
   estimate?: EstimateLink
   /** A name to start the form with when there is no estimate to take it from. */
   initialName?: string
@@ -101,7 +127,13 @@ export function QuickEntryForm({ log, foods, day, now, estimate, initialName, on
         }
         const created = createdFood.current
         let foodId: nutrition.FoodId
-        if (created === null) {
+        const existing =
+          created === null && estimate !== undefined
+            ? (await currentFoods(foods)).find((food) => food.name === foodFields.name && food.place === foodFields.place)
+            : undefined
+        if (existing !== undefined) {
+          foodId = existing.id
+        } else if (created === null) {
           foodId = await foods.add(foodFields)
           createdFood.current = { id: foodId, fields: foodFields }
         } else {
