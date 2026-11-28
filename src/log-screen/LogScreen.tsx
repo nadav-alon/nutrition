@@ -5,6 +5,7 @@ import { TextField } from 'household-ui/ui/TextField.tsx'
 import type { Day } from '../day.ts'
 import type { EstimateLink } from '../estimate-link.ts'
 import type { Foods, SavedFood } from '../foods/foods.ts'
+import { BackArrow } from '../BackArrow.tsx'
 import { errorMessage } from '../error-message.ts'
 import type { LogEntry, LogStore } from '../log/log-store.ts'
 import { recents, type Recent } from '../log/recents.ts'
@@ -95,10 +96,7 @@ export function LogScreen({ log, foods, day, now, onDone, estimate }: LogScreenP
   }
   return (
     <main class="screen log-screen">
-      <Button variant="text" onClick={onDone}>
-        Back
-      </Button>
-      <h2>Log</h2>
+      <BackArrow onClick={onDone} />
       {loadError !== null && <p role="alert">{loadError}</p>}
       <Button variant="tonal" onClick={() => setMode({ kind: 'quick' })}>
         Quick entry

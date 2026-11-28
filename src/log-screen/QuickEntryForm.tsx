@@ -4,6 +4,7 @@ import { nutrition } from 'data-platform'
 import { Button } from 'household-ui/ui/Button.tsx'
 import { TextField } from 'household-ui/ui/TextField.tsx'
 import type { EstimateLink } from '../estimate-link.ts'
+import { BackArrow } from '../BackArrow.tsx'
 import { errorMessage } from '../error-message.ts'
 import type { FoodFields, Foods } from '../foods/foods.ts'
 import { useConfirmFields } from './confirm-fields.tsx'
@@ -128,9 +129,7 @@ export function QuickEntryForm({ log, foods, day, now, estimate, onSaved, onBack
 
   return (
     <main class="screen log-quick">
-      <Button variant="text" onClick={onBack}>
-        Back
-      </Button>
+      <BackArrow onClick={onBack} />
       <h2>Quick entry</h2>
       <form class="stack" onSubmit={handleSubmit}>
         <TextField

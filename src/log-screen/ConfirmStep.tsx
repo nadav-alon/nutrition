@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import { Button } from 'household-ui/ui/Button.tsx'
+import { BackArrow } from '../BackArrow.tsx'
 import { errorMessage } from '../error-message.ts'
 import { useConfirmFields } from './confirm-fields.tsx'
 import { logPicked, type LogStepProps, type Picked } from './log-picked.ts'
@@ -31,9 +32,7 @@ export function ConfirmStep({ log, picked, day, now, onSaved, onBack }: ConfirmS
 
   return (
     <main class="screen log-confirm">
-      <Button variant="text" onClick={onBack}>
-        Back
-      </Button>
+      <BackArrow onClick={onBack} />
       <h2>{picked.name}</h2>
       {picked.servingLabel !== undefined && <p>1 serving: {picked.servingLabel}</p>}
       <form class="stack" onSubmit={handleSubmit}>
