@@ -7,11 +7,18 @@ import { routesFor, type Route } from './routes.ts'
  * back button returns to the previous screen and a refresh stays on this one), and how to finish
  * with a screen: `back` goes back to `route` when that is the entry just before, otherwise on to
  * it; `backToAny` goes back whenever the entry just before is a route `accepts`, otherwise on to
- * `fallback`.
+ * `fallback`. The last function swaps the current entry for another route instead of adding one,
+ * for moves within a screen that back should not retrace.
  */
 export function useRoute(
   today: Day,
-): [Route, (route: Route) => void, (route: Route) => void, (fallback: Route, accepts: (from: Route) => boolean) => void] {
+): [
+  Route,
+  (route: Route) => void,
+  (route: Route) => void,
+  (fallback: Route, accepts: (from: Route) => boolean) => void,
+  (route: Route) => void,
+] {
   const { hashFor, parseRoute } = routesFor(today)
   const [hash, setHash] = useState(() => location.hash)
   useEffect(() => {
@@ -44,5 +51,9 @@ export function useRoute(
   }
   // An empty hash reads as today's Day, so compare routes, not hash text.
   const back = (route: Route) => backToAny(route, (from) => hashFor(from) === hashFor(route))
-  return [parseRoute(hash), go, back, backToAny]
+  const replace = (route: Route) => {
+    history.replaceState(history.state, '', hashFor(route))
+    setHash(location.hash)
+  }
+  return [parseRoute(hash), go, back, backToAny, replace]
 }

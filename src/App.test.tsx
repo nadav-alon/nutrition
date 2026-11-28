@@ -58,6 +58,13 @@ describe('App routes', () => {
     expect(screen.getByRole('heading', { name: 'Yesterday' })).toBeInTheDocument()
   })
 
+  it('replaces the history entry when moving between Days, so back leaves the Day screen in one step', () => {
+    render(<App {...ports()} />)
+    const before = history.length
+    for (let i = 0; i < 5; i++) fireEvent.click(screen.getByRole('button', { name: 'Previous day' }))
+    expect(history.length).toBe(before)
+  })
+
   it("leaves a route meaning today when the Member comes back to today's Day", () => {
     location.hash = `#/day/${today}/log`
     render(<App {...ports()} />)
