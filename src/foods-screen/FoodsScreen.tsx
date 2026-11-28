@@ -4,6 +4,7 @@ import { Button } from 'household-ui/ui/Button.tsx'
 import { ListRow } from 'household-ui/ui/ListRow.tsx'
 import { TextField } from 'household-ui/ui/TextField.tsx'
 import { BackArrow } from '../BackArrow.tsx'
+import { StatusScreen } from '../StatusScreen.tsx'
 import { errorMessage } from '../error-message.ts'
 import type { Foods, SavedFood } from '../foods/foods.ts'
 import { FoodForm } from './FoodForm.tsx'
@@ -42,30 +43,17 @@ export function FoodsScreen({ foods, form, onOpenForm, onCloseForm, onLeave }: F
     return foods.watch(setList, (error) => setListError(errorMessage(error, 'Could not load Foods.')))
   }, [foods])
 
-  if (listError !== null) {
-    return (
-      <main class="screen foods" role="alert">
-        <BackArrow onClick={form === undefined ? onLeave : onCloseForm} />
-        {listError}
-      </main>
-    )
-  }
-  if (list === null) {
-    return (
-      <main class="screen foods">
-        <BackArrow onClick={form === undefined ? onLeave : onCloseForm} />
-      </main>
-    )
-  }
+  const leave = form === undefined ? onLeave : onCloseForm
+  if (listError !== null) return <StatusScreen onBack={leave} alert>{listError}</StatusScreen>
+  if (list === null) return <StatusScreen onBack={leave} />
   if (form === 'new') return <FoodForm key="new" foods={foods} onDone={onCloseForm} />
   if (form !== undefined) {
     const food = list.find((candidate) => candidate.id === form)
     if (food === undefined) {
       return (
-        <main class="screen foods">
-          <BackArrow onClick={onCloseForm} />
+        <StatusScreen onBack={onCloseForm}>
           <p>That Food is no longer there.</p>
-        </main>
+        </StatusScreen>
       )
     }
     return <FoodForm key={food.id} foods={foods} food={food} onDone={onCloseForm} />

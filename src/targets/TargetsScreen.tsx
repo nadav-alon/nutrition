@@ -6,6 +6,7 @@ import type { Targets, TargetsPort } from './targets-port.ts'
 import { GoogleHealthSwitch } from './GoogleHealthSwitch.tsx'
 import { Button } from 'household-ui/ui/Button.tsx'
 import { BackArrow } from '../BackArrow.tsx'
+import { StatusScreen } from '../StatusScreen.tsx'
 import { TextField } from 'household-ui/ui/TextField.tsx'
 
 type FieldKey = Extract<'kcal' | 'proteinG' | 'carbsG' | 'fatG', keyof Targets>
@@ -103,15 +104,13 @@ export function TargetsScreen({ targets: port, settings, onLeave }: TargetsScree
 
   if (draft === null) {
     return portError !== null ? (
-      <main class="screen targets" role="alert">
-        <BackArrow onClick={onLeave} />
+      <StatusScreen onBack={onLeave} alert>
         {portError}
-      </main>
+      </StatusScreen>
     ) : (
-      <main class="screen targets">
-        <BackArrow onClick={onLeave} />
+      <StatusScreen onBack={onLeave}>
         <p>Loading…</p>
-      </main>
+      </StatusScreen>
     )
   }
   const current = draft

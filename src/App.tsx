@@ -1,7 +1,7 @@
 import { TopAppBar, TopAppBarActions } from 'household-ui/shell/TopAppBar.tsx'
 import { Button } from 'household-ui/ui/Button.tsx'
 import type { nutrition } from 'data-platform'
-import { BackArrow } from './BackArrow.tsx'
+import { StatusScreen } from './StatusScreen.tsx'
 import { AccountAction } from './gate/account.tsx'
 import type { Day } from './day.ts'
 import { DayScreen } from './day-screen/DayScreen.tsx'
@@ -116,27 +116,24 @@ function LogEntryLoader({ log, day, id, onDone }: { log: LogStore; day: Day; id:
   const dayEntries = useDayEntries(log, day)
   if (dayEntries.status === 'loading') {
     return (
-      <div class="screen">
-        <BackArrow onClick={onDone} />
+      <StatusScreen onBack={onDone}>
         <p>Loading…</p>
-      </div>
+      </StatusScreen>
     )
   }
   if (dayEntries.status === 'error') {
     return (
-      <div class="screen" role="alert">
-        <BackArrow onClick={onDone} />
+      <StatusScreen onBack={onDone} alert>
         <p>Could not load the entry.</p>
-      </div>
+      </StatusScreen>
     )
   }
   const entry = dayEntries.entries.find((candidate) => candidate.id === id)
   if (entry === undefined) {
     return (
-      <div class="screen">
-        <BackArrow onClick={onDone} />
+      <StatusScreen onBack={onDone}>
         <p>That entry is no longer there.</p>
-      </div>
+      </StatusScreen>
     )
   }
   return <LogEntryScreen store={log} entry={entry} onDone={onDone} />
