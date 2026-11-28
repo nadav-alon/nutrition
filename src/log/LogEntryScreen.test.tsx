@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/preact'
+import { fireEvent, screen, waitFor } from '@testing-library/preact'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fakeLogStore } from './fake-log-store.ts'
+import { renderInAppBar } from '../test/render-in-app-bar.tsx'
 import { LogEntryScreen } from './LogEntryScreen.tsx'
 import { schnitzel } from './log-store.contract.ts'
 import type { LogEntry, NewLogEntry } from './log-store.ts'
@@ -14,7 +15,7 @@ async function setup(logged: NewLogEntry = schnitzel) {
   const id = await store.create(logged)
   const entry: LogEntry = { ...logged, id }
   const onDone = vi.fn()
-  const view = render(<LogEntryScreen store={store} entry={entry} onDone={onDone} />)
+  const view = renderInAppBar(<LogEntryScreen store={store} entry={entry} onDone={onDone} />)
   const stored = () => {
     let latest: readonly LogEntry[] = []
     store.watchDay(new Date(0), END_OF_TIME, (entries) => (latest = entries))()
@@ -26,6 +27,11 @@ async function setup(logged: NewLogEntry = schnitzel) {
 afterEach(() => vi.restoreAllMocks())
 
 describe('LogEntryScreen', () => {
+  it('has one Back, as an arrow in the app bar', async () => {
+    await setup()
+    expect(screen.getAllByRole('button', { name: /back/i })).toHaveLength(1)
+  })
+
   it('shows the entry name and Nutrition totals as text, not inputs', async () => {
     await setup()
     expect(screen.getByRole('heading', { name: 'Schnitzel plate' })).toBeInTheDocument()

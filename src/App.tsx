@@ -1,6 +1,7 @@
 import { TopAppBar, TopAppBarActions } from 'household-ui/shell/TopAppBar.tsx'
 import { Button } from 'household-ui/ui/Button.tsx'
 import type { nutrition } from 'data-platform'
+import { BackArrow } from './BackArrow.tsx'
 import { AccountAction } from './gate/account.tsx'
 import type { Day } from './day.ts'
 import { DayScreen } from './day-screen/DayScreen.tsx'
@@ -95,14 +96,19 @@ export function App({ log, foods, targets, settings }: AppPorts) {
 /** The Log Entry `id` on `day`, found by watching the Day, so a refresh on its URL still opens it. */
 function LogEntryLoader({ log, day, id, onDone }: { log: LogStore; day: Day; id: nutrition.LogEntryId; onDone: () => void }) {
   const dayEntries = useDayEntries(log, day)
-  if (dayEntries.status === 'loading') return <p class="screen">Loading…</p>
+  if (dayEntries.status === 'loading') {
+    return (
+      <div class="screen">
+        <BackArrow onClick={onDone} />
+        <p>Loading…</p>
+      </div>
+    )
+  }
   if (dayEntries.status === 'error') {
     return (
       <div class="screen" role="alert">
+        <BackArrow onClick={onDone} />
         <p>Could not load the entry.</p>
-        <Button variant="tonal" onClick={onDone}>
-          Back to the Day
-        </Button>
       </div>
     )
   }
@@ -110,10 +116,8 @@ function LogEntryLoader({ log, day, id, onDone }: { log: LogStore; day: Day; id:
   if (entry === undefined) {
     return (
       <div class="screen">
+        <BackArrow onClick={onDone} />
         <p>That entry is no longer there.</p>
-        <Button variant="tonal" onClick={onDone}>
-          Back to the Day
-        </Button>
       </div>
     )
   }
