@@ -81,4 +81,10 @@ describe('recents', () => {
     expect(newestEstimated).toMatchObject({ kind: 'quick', estimated: true })
     expect(newestPlain).not.toHaveProperty('estimated')
   })
+
+  it('leaves a Food Recent without an Estimated flag even when its entry carried one', () => {
+    const [recent] = recents([{ ...food('Soup', 'b'), estimated: true }], live)
+    expect(recent).toMatchObject({ kind: 'food' })
+    expect(recent).not.toHaveProperty('estimated')
+  })
 })
