@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Foods as FoodsPort } from '../foods/foods.ts'
 import { fakeFoods } from '../foods/fake-foods.ts'
 import { apple, listed, schnitzel } from '../foods/foods.contract.ts'
-import { renderInAppBar } from '../test/render-in-app-bar.tsx'
+import { expectOneBackInAppBar, renderInAppBar } from '../test/render-in-app-bar.tsx'
 import { FoodsScreen } from './FoodsScreen.tsx'
 
 /** The FoodsScreen with the open form kept in state, as the router keeps it in the URL. */
@@ -279,9 +279,42 @@ describe('FoodsScreen back arrow', () => {
     await foods.add(schnitzel)
     renderInAppBar(<Foods foods={foods} />)
     await screen.findByRole('listitem')
-    expect(screen.getAllByRole('button', { name: /back/i })).toHaveLength(1)
+    expectOneBackInAppBar()
     fireEvent.click(screen.getByRole('button', { name: 'Add food' }))
-    expect(screen.getAllByRole('button', { name: /back/i })).toHaveLength(1)
+    expectOneBackInAppBar()
+  })
+
+  it('has one Back in the Edit food form', async () => {
+    const foods = fakeFoods()
+    await foods.add(schnitzel)
+    renderInAppBar(<Foods foods={foods} />)
+    fireEvent.click(await screen.findByRole('button', { name: /Canteen schnitzel/ }))
+    await screen.findByLabelText('Place')
+    expectOneBackInAppBar()
+  })
+
+  it('has one Back when the list fails to load', async () => {
+    const foods: FoodsPort = {
+      ...fakeFoods(),
+      watch(_listener, onError) {
+        onError?.(new Error('boom'))
+        return () => {}
+      },
+    }
+    renderInAppBar(<Foods foods={foods} />)
+    await screen.findByRole('alert')
+    expectOneBackInAppBar()
+  })
+
+  it('has one Back while the list loads', () => {
+    renderInAppBar(<Foods foods={{ ...fakeFoods(), watch: () => () => {} }} />)
+    expectOneBackInAppBar()
+  })
+
+  it('has one Back when the Food is no longer there', async () => {
+    renderInAppBar(<FoodsScreen foods={fakeFoods()} form={'gone' as nutrition.FoodId} onOpenForm={() => {}} onCloseForm={() => {}} onLeave={() => {}} />)
+    await screen.findByText('That Food is no longer there.')
+    expectOneBackInAppBar()
   })
 })
 

@@ -8,6 +8,7 @@ import { fakeLogStore } from './log/fake-log-store.ts'
 import { servings } from './log/servings.ts'
 import { fakeSettingsPort } from './settings/fake-settings-port.ts'
 import { fakeTargetsPort } from './targets/fake-targets-port.ts'
+import { expectOneBackInAppBar } from './test/render-in-app-bar.tsx'
 
 const today = dayOf(new Date())
 
@@ -126,6 +127,67 @@ describe('App routes', () => {
     expect(location.hash).toBe(`#/day/${previousDay(today)}`)
     expect(push).toHaveBeenCalledTimes(1)
     push.mockRestore()
+  })
+
+  it('leaves the Day history as it was when Back from Foods is followed by the system back', async () => {
+    location.hash = `#/day/${previousDay(today)}`
+    render(<App {...ports()} />)
+    const depth = history.length
+    fireEvent.click(screen.getByRole('button', { name: 'Foods' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Back' }))
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Yesterday' })).toBeInTheDocument())
+    expect(history.length).toBe(depth + 1)
+    history.back()
+    await waitFor(() => expect(location.hash).not.toBe(`#/day/${previousDay(today)}`))
+    expect(location.hash).not.toMatch(/foods/)
+  })
+
+  it('goes Yesterday → Foods → Edit food, then Back and Back return to Foods and then Yesterday', async () => {
+    const p = ports()
+    const id = await p.foods.add({
+      name: 'Apple',
+      estimated: false,
+      perServing: { kcal: nutrition.kcal(95), proteinG: nutrition.grams(0), carbsG: nutrition.grams(25), fatG: nutrition.grams(0) },
+    })
+    location.hash = `#/day/${previousDay(today)}`
+    render(<App {...p} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Foods' }))
+    fireEvent.click(await screen.findByRole('button', { name: /Apple/ }))
+    expect(location.hash).toBe(`#/foods/${id}`)
+    fireEvent.click(await screen.findByRole('button', { name: 'Back' }))
+    await waitFor(() => expect(location.hash).toBe('#/foods'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Back' }))
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Yesterday' })).toBeInTheDocument())
+    expect(location.hash).toBe(`#/day/${previousDay(today)}`)
+  })
+
+  describe('Log Entry states', () => {
+    const entryHash = `#/day/${today}/entry/nope`
+
+    it('has one Back in the app bar while loading', () => {
+      const p = ports()
+      p.log = { ...p.log, watchDay: () => () => {} }
+      location.hash = entryHash
+      render(<App {...p} />)
+      expect(screen.getByText('Loading…')).toBeInTheDocument()
+      expectOneBackInAppBar()
+    })
+
+    it('has one Back in the app bar when the Day fails to load', async () => {
+      const p = ports()
+      p.log = { ...p.log, watchDay: (_start, _end, _onEntries, onError) => (onError?.(new Error('boom')), () => {}) }
+      location.hash = entryHash
+      render(<App {...p} />)
+      await screen.findByText('Could not load the entry.')
+      expectOneBackInAppBar()
+    })
+
+    it('has one Back in the app bar when the entry is no longer there', async () => {
+      location.hash = entryHash
+      render(<App {...ports()} />)
+      await screen.findByText('That entry is no longer there.')
+      expectOneBackInAppBar()
+    })
   })
 
   it.each([

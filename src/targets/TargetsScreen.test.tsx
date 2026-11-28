@@ -5,7 +5,7 @@ import { fakeTargetsPort } from './fake-targets-port.ts'
 import type { Targets, TargetsPort } from './targets-port.ts'
 import type { SettingsPort } from '../settings/settings-port.ts'
 import { fakeSettingsPort } from '../settings/fake-settings-port.ts'
-import { renderInAppBar } from '../test/render-in-app-bar.tsx'
+import { expectOneBackInAppBar, renderInAppBar } from '../test/render-in-app-bar.tsx'
 import { TargetsScreen } from './TargetsScreen.tsx'
 
 /** Renders the screen; a port left out is a fresh fake. */
@@ -48,6 +48,7 @@ describe('TargetsScreen', () => {
     const never: TargetsPort = { ...fakeTargetsPort(), subscribe: () => () => {} }
     renderScreen({ port: never, onLeave })
     expect(screen.getByText('Loading…')).toBeInTheDocument()
+    expectOneBackInAppBar()
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
     expect(onLeave).toHaveBeenCalled()
   })

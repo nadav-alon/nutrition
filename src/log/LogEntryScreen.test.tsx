@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/preact'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fakeLogStore } from './fake-log-store.ts'
-import { renderInAppBar } from '../test/render-in-app-bar.tsx'
+import { expectOneBackInAppBar, renderInAppBar } from '../test/render-in-app-bar.tsx'
 import { LogEntryScreen } from './LogEntryScreen.tsx'
 import { schnitzel } from './log-store.contract.ts'
 import type { LogEntry, NewLogEntry } from './log-store.ts'
@@ -29,7 +29,7 @@ afterEach(() => vi.restoreAllMocks())
 describe('LogEntryScreen', () => {
   it('has one Back, as an arrow in the app bar', async () => {
     await setup()
-    expect(screen.getAllByRole('button', { name: /back/i })).toHaveLength(1)
+    expectOneBackInAppBar()
   })
 
   it('shows the entry name and Nutrition totals as text, not inputs', async () => {

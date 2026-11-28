@@ -8,7 +8,7 @@ import { fakeLogStore } from '../log/fake-log-store.ts'
 import type { LogEntry, LogStore } from '../log/log-store.ts'
 import { quickToast, schnitzel } from '../log/log-store.contract.ts'
 import type { EstimateLink } from '../estimate-link.ts'
-import { renderInAppBar } from '../test/render-in-app-bar.tsx'
+import { expectOneBackInAppBar, renderInAppBar } from '../test/render-in-app-bar.tsx'
 import { LogScreen } from './LogScreen.tsx'
 
 const { grams, kcal } = nutrition
@@ -490,8 +490,15 @@ describe('LogScreen opened from an estimate link', () => {
 describe('LogScreen back arrow', () => {
   it('has one Back on each step', async () => {
     renderInAppBar(<LogScreen log={fakeLogStore()} foods={fakeFoods()} day={TODAY} now={NOW} onDone={vi.fn()} />)
-    expect(screen.getAllByRole('button', { name: /back/i })).toHaveLength(1)
+    expectOneBackInAppBar()
     fireEvent.click(screen.getByRole('button', { name: 'Quick entry' }))
-    expect(screen.getAllByRole('button', { name: /back/i })).toHaveLength(1)
+    expectOneBackInAppBar()
+  })
+
+  it('has one Back on the Confirm step', async () => {
+    await setup()
+    fireEvent.click(await screen.findByRole('button', { name: /Schnitzel plate/ }))
+    await screen.findByLabelText('Servings')
+    expectOneBackInAppBar()
   })
 })
