@@ -11,6 +11,7 @@ import { LogEntryScreen } from './log/LogEntryScreen.tsx'
 import type { LogStore } from './log/log-store.ts'
 import { useDayEntries } from './log/use-day-entries.ts'
 import type { Route } from './routes.ts'
+import type { SettingsPort } from './settings/settings-port.ts'
 import { TargetsScreen } from './targets/TargetsScreen.tsx'
 import type { TargetsPort } from './targets/targets-port.ts'
 import { useNow } from './use-now.ts'
@@ -21,10 +22,11 @@ export interface AppPorts {
   log: LogStore
   foods: Foods
   targets: TargetsPort
+  settings: SettingsPort
 }
 
 /** The signed-in app: the Member's Day as home, with the screens reached from it. */
-export function App({ log, foods, targets }: AppPorts) {
+export function App({ log, foods, targets, settings }: AppPorts) {
   const { now, today } = useNow()
   const [route, go, back] = useRoute(today)
   const home: Route = { name: 'day', day: today }
@@ -85,7 +87,7 @@ export function App({ log, foods, targets }: AppPorts) {
           onLeave={() => back(home)}
         />
       )}
-      {route.name === 'targets' && <TargetsScreen port={targets} onLeave={() => back(home)} />}
+      {route.name === 'targets' && <TargetsScreen targets={targets} settings={settings} onLeave={() => back(home)} />}
     </TopAppBar>
   )
 }

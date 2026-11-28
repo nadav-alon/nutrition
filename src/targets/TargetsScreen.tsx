@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import { nutrition } from 'data-platform'
+import type { SettingsPort } from '../settings/settings-port.ts'
 import type { Targets, TargetsPort } from './targets-port.ts'
+import { GoogleHealthSwitch } from './GoogleHealthSwitch.tsx'
 import { Button } from 'household-ui/ui/Button.tsx'
 import { TextField } from 'household-ui/ui/TextField.tsx'
 
@@ -51,13 +53,18 @@ function toTargets(draft: Draft): Targets {
 const discardPrompt = 'Discard your unsaved changes?'
 
 export type TargetsScreenProps = {
-  port: TargetsPort
+  targets: TargetsPort
+  /** Where the Push to Google Health switch is read and written; it applies at once, apart from the Targets form. */
+  settings: SettingsPort
   /** Called when the Member leaves the screen; with unsaved changes, only once they agree to discard them. */
   onLeave: () => void
 }
 
-/** Sets the Member's daily Targets; a field left empty means no Target for that macro. */
-export function TargetsScreen({ port, onLeave }: TargetsScreenProps) {
+/**
+ * Sets the Member's daily Targets; a field left empty means no Target for that macro. Also hosts the
+ * Push to Google Health switch.
+ */
+export function TargetsScreen({ targets: port, settings, onLeave }: TargetsScreenProps) {
   const [draft, setDraft] = useState<Draft | null>(null)
   /** The fields as last loaded or saved, which unsaved changes are measured against. */
   const [saved, setSaved] = useState<Draft | null>(null)
@@ -152,6 +159,7 @@ export function TargetsScreen({ port, onLeave }: TargetsScreenProps) {
           Save
         </Button>
       </form>
+      <GoogleHealthSwitch settings={settings} />
     </main>
   )
 }
