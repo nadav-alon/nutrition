@@ -50,6 +50,7 @@ function pickedFood(food: SavedFood): Picked {
     source: { kind: 'food', foodId: food.id },
     perServing: food.perServing,
     servingLabel: food.servingLabel,
+    ...(food.estimated && { estimated: true as const }),
   }
 }
 

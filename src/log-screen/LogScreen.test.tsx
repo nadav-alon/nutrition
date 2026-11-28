@@ -201,6 +201,36 @@ describe('LogScreen confirm step', () => {
     expect(screen.getByLabelText('Nutrition for these Servings')).toHaveTextContent('500 kcal')
   })
 
+  it('logging an Estimated Food stores estimated on the entry', async () => {
+    const { foods, log, onDone } = await setup({ withRecents: false })
+    await foods.add({ ...schnitzelFields, name: 'Guessed stew', estimated: true })
+    fireEvent.input(screen.getByLabelText('Search foods'), { target: { value: 'stew' } })
+    fireEvent.click(await screen.findByRole('button', { name: /Guessed stew/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1))
+    expect(entriesOn(log, TODAY)[0]).toMatchObject({ name: 'Guessed stew', source: { kind: 'food' }, estimated: true })
+  })
+
+  it('logging a Food that is not Estimated stores no estimated flag', async () => {
+    const { log, onDone } = await setup()
+    fireEvent.click(await screen.findByRole('button', { name: /Schnitzel plate/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    const logged = entriesOn(log, TODAY).find((entry) => entry.eatenAt.getTime() === NOW.getTime())
+    expect(logged).not.toHaveProperty('estimated')
+  })
+
+  it('keeps the flag on an existing entry when the Food is corrected afterwards', async () => {
+    const { foods, log, onDone } = await setup({ withRecents: false })
+    const id = await foods.add({ ...schnitzelFields, name: 'Guessed stew', estimated: true })
+    fireEvent.input(screen.getByLabelText('Search foods'), { target: { value: 'stew' } })
+    fireEvent.click(await screen.findByRole('button', { name: /Guessed stew/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1))
+    await foods.edit(id, { estimated: false })
+    expect(entriesOn(log, TODAY)[0]).toMatchObject({ estimated: true })
+  })
+
   it('logs a Food found by search', async () => {
     const { log, onDone } = await setup({ withRecents: false })
     fireEvent.input(screen.getByLabelText('Search foods'), { target: { value: 'canteen' } })
