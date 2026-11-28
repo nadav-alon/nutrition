@@ -53,20 +53,34 @@ describe('LogScreen Recents', () => {
 })
 
 describe('LogScreen Recents, beyond the list', () => {
-  it('shows Recents above the search results while searching', async () => {
+  it('puts the search field above Recents, and Food results replace Recents while a query is typed', async () => {
     await setup()
-    fireEvent.input(screen.getByLabelText('Search foods'), { target: { value: 'schnitzel' } })
-    const foodsSection = await screen.findByRole('region', { name: 'Foods' })
-    const recentsSection = screen.getByRole('region', { name: 'Recents' })
-    expect(recentsSection.compareDocumentPosition(foodsSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    const search = screen.getByLabelText('Search foods')
+    const recentsSection = await screen.findByRole('region', { name: 'Recents' })
+    expect(search.compareDocumentPosition(recentsSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    fireEvent.input(search, { target: { value: 'schnitzel' } })
+    expect(await screen.findByRole('region', { name: 'Foods' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Recents' })).toBeNull()
+  })
+
+  it('shows no Recents heading when there are none', async () => {
+    await setup({ withRecents: false })
+    expect(screen.queryByText('Recents')).toBeNull()
+  })
+
+  it('offers a Quick Entry with the typed name prefilled when no Food matches', async () => {
+    await setup({ withRecents: false })
+    fireEvent.input(screen.getByLabelText('Search foods'), { target: { value: 'Pizza slice' } })
+    fireEvent.click(await screen.findByRole('button', { name: /Quick entry for/ }))
+    expect(screen.getByLabelText('Name')).toHaveValue('Pizza slice')
   })
 
   it('leaves a soft-deleted Food out of Recents and of search', async () => {
     const { foods, foodId } = await setup()
     await foods.softDelete(foodId)
+    expect(within(await screen.findByRole('region', { name: 'Recents' })).queryByText('Schnitzel plate')).toBeNull()
     fireEvent.input(screen.getByLabelText('Search foods'), { target: { value: 'schnitzel' } })
     expect(await screen.findByText('No Foods match.')).toBeInTheDocument()
-    expect(within(screen.getByRole('region', { name: 'Recents' })).queryByText('Schnitzel plate')).toBeNull()
   })
 
   it('shows a failure to watch the Foods', async () => {
@@ -295,7 +309,7 @@ describe('LogScreen Quick Entry', () => {
     const { onDone } = await setup({ withRecents: false })
     fireEvent.click(screen.getByRole('button', { name: 'Quick entry' }))
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
-    expect(screen.getByRole('region', { name: 'Recents' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Search foods')).toBeInTheDocument()
     expect(onDone).not.toHaveBeenCalled()
   })
 })

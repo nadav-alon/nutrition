@@ -36,7 +36,7 @@ function matches(food: SavedFood, query: string): boolean {
 }
 
 /** Which step of logging the screen is on: choosing what to log, confirming a pick, or typing a Quick Entry. */
-type Mode = { kind: 'choose' } | { kind: 'confirm'; picked: Picked } | { kind: 'quick' }
+type Mode = { kind: 'choose' } | { kind: 'confirm'; picked: Picked } | { kind: 'quick'; name?: string }
 
 /** Logging one thing on a Day: a Recent, a saved Food, or a Quick Entry. */
 export function LogScreen({ log, foods, day, now, onDone, estimate }: LogScreenProps) {
@@ -97,34 +97,29 @@ export function LogScreen({ log, foods, day, now, onDone, estimate }: LogScreenP
     return <ConfirmStep log={log} picked={mode.picked} day={day} now={now} onSaved={onDone} onBack={backToChoosing} />
   }
   if (mode.kind === 'quick') {
-    return <QuickEntryForm log={log} foods={foods} day={day} now={now} estimate={estimate} onSaved={onDone} onBack={backToChoosing} />
+    return <QuickEntryForm log={log} foods={foods} day={day} now={now} estimate={estimate} onSaved={onDone} onBack={backToChoosing} initialName={mode.name} />
   }
+  const searching = query.trim() !== ''
   return (
     <main class="screen log-screen">
       <BackArrow onClick={onDone} />
-      {loadError !== null && <p role="alert">{loadError}</p>}
-      <Button variant="tonal" onClick={() => setMode({ kind: 'quick' })}>
-        Quick entry
-      </Button>
-      <section aria-labelledby="recents-heading">
-        <h3 id="recents-heading">Recents</h3>
-        <ul class="entry-list">
-          {offered.map((recent) => (
-            <ListRow key={recent.kind === 'food' ? recent.foodId : `quick:${recent.name}`} headline={recent.name} onActivate={() => pickRecent(recent)} />
-          ))}
-        </ul>
-      </section>
       <TextField
         label="Search foods"
         type="search"
         value={query}
         onInput={(event) => setQuery(event.currentTarget.value)}
       />
-      {query.trim() !== '' && (
+      {loadError !== null && <p role="alert">{loadError}</p>}
+      {searching ? (
         <section aria-labelledby="foods-heading">
           <h3 id="foods-heading">Foods</h3>
           {found.length === 0 ? (
-            <p>No Foods match.</p>
+            <>
+              <p>No Foods match.</p>
+              <Button variant="tonal" onClick={() => setMode({ kind: 'quick', name: query.trim() })}>
+                Quick entry for “{query.trim()}”
+              </Button>
+            </>
           ) : (
             <ul class="entry-list">
               {found.map((food) => (
@@ -133,6 +128,22 @@ export function LogScreen({ log, foods, day, now, onDone, estimate }: LogScreenP
             </ul>
           )}
         </section>
+      ) : (
+        <>
+          {offered.length > 0 && (
+            <section aria-labelledby="recents-heading">
+              <h3 id="recents-heading">Recents</h3>
+              <ul class="entry-list">
+                {offered.map((recent) => (
+                  <ListRow key={recent.kind === 'food' ? recent.foodId : `quick:${recent.name}`} headline={recent.name} onActivate={() => pickRecent(recent)} />
+                ))}
+              </ul>
+            </section>
+          )}
+          <Button variant="tonal" onClick={() => setMode({ kind: 'quick' })}>
+            Quick entry
+          </Button>
+        </>
       )}
     </main>
   )
