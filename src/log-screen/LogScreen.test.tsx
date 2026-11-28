@@ -180,6 +180,15 @@ describe('LogScreen confirm step', () => {
     })
   })
 
+  it('shows kcal and macros for the chosen Servings, following the Servings field', async () => {
+    await setup()
+    fireEvent.click(await screen.findByRole('button', { name: /Schnitzel plate/ }))
+    const summary = screen.getByLabelText('Nutrition for these Servings')
+    expect(summary).toHaveTextContent('500 kcal · 30 g protein · 50 g carbs · 20 g fat')
+    fireEvent.input(screen.getByLabelText('Servings'), { target: { value: '1.5' } })
+    expect(summary).toHaveTextContent('750 kcal · 45 g protein · 75 g carbs · 30 g fat')
+  })
+
   it('logs a Food found by search', async () => {
     const { log, onDone } = await setup({ withRecents: false })
     fireEvent.input(screen.getByLabelText('Search foods'), { target: { value: 'canteen' } })
