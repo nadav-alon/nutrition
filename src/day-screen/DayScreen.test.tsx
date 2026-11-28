@@ -391,6 +391,22 @@ describe('DayScreen swipe', () => {
   })
 })
 
+describe('DayScreen swipe gestures that are not swipes', () => {
+  it('ignores a cancelled touch and a multi-touch pinch', () => {
+    renderScreen()
+    const area = screen.getByRole('heading', { level: 2 }).closest('section')!
+    fireEvent.touchStart(area, { changedTouches: [{ clientX: 50, clientY: 100 }] })
+    fireEvent.touchCancel(area)
+    fireEvent.touchEnd(area, { changedTouches: [{ clientX: 250, clientY: 100 }] })
+    fireEvent.touchStart(area, {
+      touches: [{ clientX: 50, clientY: 100 }, { clientX: 90, clientY: 100 }],
+      changedTouches: [{ clientX: 50, clientY: 100 }],
+    })
+    fireEvent.touchEnd(area, { changedTouches: [{ clientX: 250, clientY: 100 }] })
+    expect(screen.getByRole('heading', { name: 'Today' })).toBeInTheDocument()
+  })
+})
+
 describe('DayScreen Log in reach', () => {
   it('pins Log in its own bar, outside the scrolling meal sections', () => {
     renderScreen()
