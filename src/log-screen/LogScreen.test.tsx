@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/preact'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nutrition } from 'data-platform'
 import { day, dayEnd, dayStart, type Day } from '../day.ts'
 import { fakeFoods } from '../foods/fake-foods.ts'
@@ -20,6 +20,11 @@ const schnitzelFields: FoodFields = {
   perServing: { kcal: kcal(500), proteinG: grams(30), carbsG: grams(50), fatG: grams(20) },
   estimated: false,
 }
+
+beforeEach(() => {
+  // A step entry left by an earlier test would count as the current test's own.
+  history.replaceState(null, '', location.href)
+})
 
 const TODAY = day('2026-03-10')
 const NOW = new Date(2026, 2, 10, 13, 5)
@@ -599,5 +604,30 @@ describe('LogScreen system back', () => {
     await waitFor(() => expect(onDone).toHaveBeenCalled())
     expect(history.length).toBe(depth)
     expect(location.hash).toBe('')
+  })
+})
+
+describe('LogScreen system back, beyond one visit', () => {
+  it('drops a step entry it remounts onto, so the list needs one Back, not two', async () => {
+    const { onDone, unmount } = await setup()
+    fireEvent.click(await screen.findByRole('button', { name: /Toast/ }))
+    expect(history.state).toMatchObject({ logStep: true })
+    unmount()
+    const remounted = renderInAppBar(<LogScreen log={fakeLogStore()} foods={fakeFoods()} day={TODAY} now={NOW} onDone={onDone} />)
+    expect(await screen.findByLabelText('Search foods')).toBeInTheDocument()
+    await waitFor(() => expect(history.state).not.toMatchObject({ logStep: true }))
+    remounted.unmount()
+  })
+
+  it('gives an estimate link’s Quick Entry its own entry, so system back and Back both return to the list', async () => {
+    const depth = history.length
+    const onDone = vi.fn()
+    renderInAppBar(
+      <LogScreen log={fakeLogStore()} foods={fakeFoods()} day={TODAY} now={NOW} onDone={onDone} estimate={{ name: 'Shawarma plate', place: '', kcal: '', proteinG: '', carbsG: '', fatG: '', servings: '1', estimated: false }} />,
+    )
+    await waitFor(() => expect(history.length).toBe(depth + 1))
+    history.back()
+    expect(await screen.findByLabelText('Search foods')).toBeInTheDocument()
+    expect(onDone).not.toHaveBeenCalled()
   })
 })

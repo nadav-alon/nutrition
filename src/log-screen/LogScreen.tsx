@@ -1,5 +1,5 @@
 import type { nutrition } from 'data-platform'
-import { useEffect, useRef, useState } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 import { Button } from 'household-ui/ui/Button.tsx'
 import { ListRow } from 'household-ui/ui/ListRow.tsx'
 import { TextField } from 'household-ui/ui/TextField.tsx'
@@ -13,6 +13,7 @@ import type { LogEntry, LogStore } from '../log/log-store.ts'
 import { recents, type Recent } from '../log/recents.ts'
 import { ConfirmStep, type Picked } from './ConfirmStep.tsx'
 import { QuickEntryForm } from './QuickEntryForm.tsx'
+import { useStepHistory } from './use-step-history.ts'
 
 /** How many of the newest Log Entries Recents are drawn from; enough that duplicates still leave `MAX_RECENTS` distinct ones. */
 const RECENT_ENTRY_WINDOW = 100
@@ -74,26 +75,11 @@ export function LogScreen({ log, foods, day, now, onDone, estimate }: LogScreenP
     }
   }, [log])
 
-  /** Whether the confirm or Quick Entry step has a history entry of its own, which system back pops. */
-  const stepEntry = useRef(false)
-  const finishing = useRef(false)
+  const stepHistory = useStepHistory({ inStep: mode.kind !== 'choose', onPopped: () => setMode({ kind: 'choose' }), onDone })
   const enter = (next: Mode) => {
-    if (!stepEntry.current) {
-      history.pushState(history.state, '', location.href)
-      stepEntry.current = true
-    }
+    stepHistory.enter()
     setMode(next)
   }
-  useEffect(() => {
-    const onPop = () => {
-      if (!stepEntry.current) return
-      stepEntry.current = false
-      if (finishing.current) setTimeout(onDone)
-      else setMode({ kind: 'choose' })
-    }
-    addEventListener('popstate', onPop)
-    return () => removeEventListener('popstate', onPop)
-  }, [onDone])
 
   const [query, setQuery] = useState('')
   const found = savedFoods.filter((food) => matches(food, query))
@@ -127,13 +113,8 @@ export function LogScreen({ log, foods, day, now, onDone, estimate }: LogScreenP
     if (food) pickFood(food)
   }
 
-  const backToChoosing = () => (stepEntry.current ? history.back() : setMode({ kind: 'choose' }))
-  const saved = () => {
-    if (!stepEntry.current) return onDone()
-    // Drop the step's entry first, so the Day the Member leaves to is one entry back, not two.
-    finishing.current = true
-    history.back()
-  }
+  const backToChoosing = stepHistory.back
+  const saved = stepHistory.finish
   if (mode.kind === 'confirm') {
     return <ConfirmStep log={log} picked={mode.picked} day={day} now={now} onSaved={saved} onBack={backToChoosing} />
   }
