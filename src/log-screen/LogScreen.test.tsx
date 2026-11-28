@@ -547,23 +547,60 @@ describe('LogScreen opened from an estimate link', () => {
     expect(entriesOn(log, TODAY)).toEqual([expect.objectContaining({ name: 'Shawarma plate', servings: 1.5 })])
   })
 
-  it('logs against an existing Food with the same name and place, creating no new Food', async () => {
+  it('logs against an existing Food with the same name and place, with that Food\'s own values', async () => {
     const { foods, log, onDone } = await setupLink(full)
     const existingId = await foods.add({ ...schnitzelFields, name: 'Shawarma plate', place: 'Hummus Bar' })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(onDone).toHaveBeenCalled())
+    expect(foodsIn(foods)).toEqual([expect.objectContaining({ id: existingId, perServing: schnitzelFields.perServing, estimated: false })])
+    const [entry] = entriesOn(log, TODAY)
+    expect(entry).toEqual(expect.objectContaining({ name: 'Shawarma plate', source: { kind: 'food', foodId: existingId }, servings: 1.5 }))
+    expect(entry?.nutrition.kcal).toBe(750)
+    expect(entry?.estimated).toBeUndefined()
+  })
+
+  it('matches the existing Food ignoring case and surrounding space', async () => {
+    const { foods, log, onDone } = await setupLink(full)
+    const existingId = await foods.add({ ...schnitzelFields, name: ' shawarma PLATE ', place: 'hummus bar' })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
     expect(foodsIn(foods)).toHaveLength(1)
-    expect(entriesOn(log, TODAY)).toEqual([
-      expect.objectContaining({ name: 'Shawarma plate', source: { kind: 'food', foodId: existingId } }),
-    ])
+    expect(entriesOn(log, TODAY)).toEqual([expect.objectContaining({ source: { kind: 'food', foodId: existingId } })])
   })
 
   it('still creates a Food when only the name matches an existing Food', async () => {
-    const { foods, onDone } = await setupLink(full)
-    await foods.add({ ...schnitzelFields, name: 'Shawarma plate', place: 'Other Place' })
+    const { foods, log, onDone } = await setupLink(full)
+    const otherId = await foods.add({ ...schnitzelFields, name: 'Shawarma plate', place: 'Other Place' })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(onDone).toHaveBeenCalled())
     expect(foodsIn(foods)).toHaveLength(2)
+    const created = foodsIn(foods).find((food) => food.id !== otherId)
+    expect(entriesOn(log, TODAY)).toEqual([expect.objectContaining({ source: { kind: 'food', foodId: created?.id } })])
+  })
+
+  it('with Save as Food unticked, logs a Quick Entry and leaves the Foods alone even when a Food matches', async () => {
+    const { foods, log, onDone } = await setupLink(full)
+    await foods.add({ ...schnitzelFields, name: 'Shawarma plate', place: 'Hummus Bar' })
+    fireEvent.click(screen.getByLabelText('Save as Food'))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    expect(foodsIn(foods)).toHaveLength(1)
+    expect(entriesOn(log, TODAY)).toEqual([expect.objectContaining({ name: 'Shawarma plate', source: { kind: 'quick' }, estimated: true })])
+  })
+
+  it('drops the Food a failed first save created when a retry edits the form into a match for another Food', async () => {
+    const { foods, log, onDone } = await setupLink(full)
+    const existingId = await foods.add({ ...schnitzelFields, name: 'Shawarma plate', place: 'Other Place' })
+    const create = vi.spyOn(log, 'create').mockRejectedValueOnce(new Error('offline'))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await screen.findByRole('alert')
+    expect(foodsIn(foods)).toHaveLength(2)
+    fireEvent.input(screen.getByLabelText('Place (optional)'), { target: { value: 'Other Place' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(onDone).toHaveBeenCalled())
+    expect(create).toHaveBeenCalledTimes(2)
+    expect(foodsIn(foods)).toEqual([expect.objectContaining({ id: existingId })])
+    expect(entriesOn(log, TODAY)).toEqual([expect.objectContaining({ source: { kind: 'food', foodId: existingId } })])
   })
 
   it('leaves what a partial link omits empty, blocks Save, and stays editable', async () => {

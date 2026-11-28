@@ -47,3 +47,10 @@ export interface Foods {
 export function byName(a: SavedFood, b: SavedFood): number {
   return a.name.localeCompare(b.name)
 }
+
+/** The Food among `foods` with the same name and place as `fields`, ignoring case and surrounding space; undefined when there is none. */
+export function findSameFood(foods: readonly SavedFood[], fields: Pick<FoodFields, 'name' | 'place'>): SavedFood | undefined {
+  const key = (name: string, place: string | undefined) => `${name.trim().toLowerCase()}\n${(place ?? '').trim().toLowerCase()}`
+  const wanted = key(fields.name, fields.place)
+  return foods.find((food) => key(food.name, food.place) === wanted)
+}
