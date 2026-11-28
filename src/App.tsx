@@ -29,10 +29,10 @@ export interface AppPorts {
 /** The signed-in app: the Member's Day as home, with the screens reached from it. */
 export function App({ log, foods, targets, settings }: AppPorts) {
   const { now, today } = useNow()
-  const [route, go, back] = useRoute(today)
+  const [route, go, back, backToAny] = useRoute(today)
   const home: Route = { name: 'day', day: today }
   /** Back to the Day the Member came from, whichever it was, else on to today's. */
-  const leaveToDay = () => back(home, (from) => from.name === 'day')
+  const leaveToDay = () => backToAny(home, (from) => from.name === 'day')
   const backToDay = (day: Day) => back({ name: 'day', day })
   return (
     <TopAppBar title={titleOf(route)}>
