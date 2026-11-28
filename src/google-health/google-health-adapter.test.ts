@@ -112,14 +112,17 @@ const entry = {
   eatenAt: new Date('2026-11-27T12:30:00Z'),
 } as const
 
-const POINT = 'users/me/dataTypes/nutrition-log/dataPoints/abc'
+const POINT = 'users/123/dataTypes/nutrition-log/dataPoints/abc'
+
+const afterIdentity = (response: () => Response) => async (url: Parameters<typeof fetch>[0]) =>
+  String(url).endsWith('/identity') ? json(IDENTITY) : response()
 
 describe('create', () => {
   afterEach(() => vi.unstubAllEnvs())
 
   const offsets = async (eatenAt: Date) => {
     const { health, fetchStub } = setup()
-    fetchStub.mockImplementation(async (url) => (String(url).endsWith('/identity') ? json({}) : created(POINT)))
+    fetchStub.mockImplementation(afterIdentity(() => created(POINT)))
     await health.connect()
     await health.create({ ...entry, eatenAt })
     const { interval } = JSON.parse(fetchStub.mock.calls[1]![1]?.body as string).nutritionLog
@@ -140,7 +143,7 @@ describe('create', () => {
   it('posts the entry mapped onto a nutrition-log data point and returns its name', async () => {
     vi.stubEnv('TZ', 'Asia/Jerusalem')
     const { health, fetchStub } = setup()
-    fetchStub.mockImplementation(async (url) => (String(url).endsWith('/identity') ? json({}) : created(POINT)))
+    fetchStub.mockImplementation(afterIdentity(() => created(POINT)))
     await health.connect()
     expect(await health.create(entry)).toBe(POINT)
     const [url, init] = fetchStub.mock.calls[1]!
@@ -165,7 +168,7 @@ describe('create', () => {
     })
   })
 
-  it('types the 400 Google answers an unnested body with', async () => {
+  it('types the recorded 400 error shape as a HealthRequestError', async () => {
     const { health, fetchStub } = setup()
     fetchStub.mockImplementation(async (url) =>
       String(url).endsWith('/identity')
@@ -175,7 +178,7 @@ describe('create', () => {
               error: {
                 code: 400,
                 status: 'INVALID_ARGUMENT',
-                message: 'Invalid JSON payload received. Unknown name "foodDisplayName" at \'data_point\': Cannot find field.',
+                message: 'Unknown name "foodDisplayName" at \'data_point\': Cannot find field.',
               },
             },
             400,
@@ -201,7 +204,7 @@ describe('the account link check', () => {
 
   it('GETs the identity once per token, before the first write', async () => {
     const { health, fetchStub } = setup()
-    fetchStub.mockImplementation(identityThenPoint(() => json({})))
+    fetchStub.mockImplementation(identityThenPoint(() => json(IDENTITY)))
     await health.connect()
     await health.create(entry)
     await health.create(entry)
@@ -215,7 +218,7 @@ describe('the account link check', () => {
 
   it('sends one identity request for writes started together', async () => {
     const { health, fetchStub } = setup()
-    fetchStub.mockImplementation(identityThenPoint(() => json({})))
+    fetchStub.mockImplementation(identityThenPoint(() => json(IDENTITY)))
     await health.connect()
     await Promise.all([health.create(entry), health.create(entry)])
     expect(fetchStub.mock.calls.filter(([url]) => String(url).endsWith('/identity'))).toHaveLength(1)
@@ -256,7 +259,7 @@ describe('the account link check', () => {
   it('checks again with a new token', async () => {
     let issued = 0
     const { health, fetchStub } = setup(({ callback }) => callback({ access_token: `tok-${issued++}`, expires_in: '3599' }))
-    fetchStub.mockImplementation(identityThenPoint(() => json({})))
+    fetchStub.mockImplementation(identityThenPoint(() => json(IDENTITY)))
     await health.connect()
     await health.create(entry)
     await health.connect()
@@ -315,9 +318,6 @@ describe('remove', () => {
 })
 
 describe('malformed successes', () => {
-  const afterIdentity = (response: () => Response) => async (url: Parameters<typeof fetch>[0]) =>
-    String(url).endsWith('/identity') ? json({}) : response()
-
   it('treats an empty batchDelete reply as success', async () => {
     const { health, fetchStub } = setup()
     fetchStub.mockImplementation(afterIdentity(() => new Response('', { status: 200 })))
@@ -362,7 +362,7 @@ describe('malformed successes', () => {
 
 describe('other failures', () => {
   const failing = (response: () => Promise<Response>) => async (url: Parameters<typeof fetch>[0]) =>
-    String(url).endsWith('/identity') ? json({}) : response()
+    String(url).endsWith('/identity') ? json(IDENTITY) : response()
 
   it('keeps the status and message of an error response', async () => {
     const { health, fetchStub } = setup()
