@@ -194,6 +194,13 @@ describe('LogScreen confirm step', () => {
     expect(summary).toHaveTextContent('750 kcal · 45 g protein · 75 g carbs · 30 g fat')
   })
 
+  it('keeps showing kcal and macros for the Servings while the eaten time is cleared', async () => {
+    await setup()
+    fireEvent.click(await screen.findByRole('button', { name: /Schnitzel plate/ }))
+    fireEvent.input(screen.getByLabelText('Eaten at'), { target: { value: '' } })
+    expect(screen.getByLabelText('Nutrition for these Servings')).toHaveTextContent('500 kcal')
+  })
+
   it('logs a Food found by search', async () => {
     const { log, onDone } = await setup({ withRecents: false })
     fireEvent.input(screen.getByLabelText('Search foods'), { target: { value: 'canteen' } })
