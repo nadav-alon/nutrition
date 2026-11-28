@@ -73,4 +73,12 @@ describe('recents', () => {
       },
     ])
   })
+
+  it('marks a Quick Entry Estimated exactly when its newest occurrence is', () => {
+    const estimated = (name: string): LogEntry => ({ ...quick(name), estimated: true })
+    const [newestEstimated] = recents([estimated('Cake'), quick('cake')], live)
+    const [newestPlain] = recents([quick('Cake'), estimated('cake')], live)
+    expect(newestEstimated).toMatchObject({ kind: 'quick', estimated: true })
+    expect(newestPlain).not.toHaveProperty('estimated')
+  })
 })
