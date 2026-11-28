@@ -11,7 +11,7 @@ export interface Picked {
   readonly source: nutrition.LogEntrySource
   readonly perServing: nutrition.Nutrition
   readonly servingLabel?: string
-  /** The Nutrition is an estimate; set on a Quick Entry only, since a Food carries its own flag. */
+  /** The Nutrition is an estimate: a Food's Estimated flag, or a Quick Entry's own. The Log Entry keeps it. */
   readonly estimated?: true
 }
 

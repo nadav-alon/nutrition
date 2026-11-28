@@ -24,7 +24,7 @@ Servings, fractions allowed.
 _Avoid_: portion, unit
 
 **Estimated**:
-Said of a Food, or of a Quick Entry not saved as a Food, whose Nutrition is a guess rather than read off a label or source.
+Said of a Food or a Log Entry whose Nutrition is a guess rather than read off a label or source. A Log Entry copies it from its Food (or Quick Entry) when logged and keeps it, even if the Food is corrected later.
 _Avoid_: approximate, guessed
 
 **Log Entry**:
