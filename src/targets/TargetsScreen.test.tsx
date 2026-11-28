@@ -214,6 +214,13 @@ describe('TargetsScreen', () => {
   })
 
   describe('Push to Google Health switch', () => {
+    it('is not shown until the settings port has reported, so a tap cannot act on a guessed state', async () => {
+      const settings: SettingsPort = { watchGoogleHealthSync: () => () => {}, setGoogleHealthSync: vi.fn() }
+      renderScreen({ settings })
+      await screen.findByLabelText('Calories (kcal)')
+      expect(screen.queryByRole('switch')).not.toBeInTheDocument()
+    })
+
     it('is off by default, with a note that pushing needs a linked Google account', async () => {
       renderScreen()
       const toggle = await screen.findByRole('switch', { name: 'Push to Google Health' })

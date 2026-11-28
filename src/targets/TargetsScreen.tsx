@@ -3,6 +3,7 @@ import type { JSX } from 'preact'
 import { nutrition } from 'data-platform'
 import type { SettingsPort } from '../settings/settings-port.ts'
 import type { Targets, TargetsPort } from './targets-port.ts'
+import { GoogleHealthSwitch } from './GoogleHealthSwitch.tsx'
 import { Button } from 'household-ui/ui/Button.tsx'
 import { TextField } from 'household-ui/ui/TextField.tsx'
 
@@ -59,7 +60,10 @@ export type TargetsScreenProps = {
   onLeave: () => void
 }
 
-/** Sets the Member's daily Targets; a field left empty means no Target for that macro. */
+/**
+ * Sets the Member's daily Targets; a field left empty means no Target for that macro. Also hosts the
+ * Push to Google Health switch.
+ */
 export function TargetsScreen({ targets: port, settings, onLeave }: TargetsScreenProps) {
   const [draft, setDraft] = useState<Draft | null>(null)
   /** The fields as last loaded or saved, which unsaved changes are measured against. */
@@ -69,8 +73,6 @@ export function TargetsScreen({ targets: port, settings, onLeave }: TargetsScree
   const [badInput, setBadInput] = useState<BadInput>({})
   const [saving, setSaving] = useState(false)
   const [portError, setPortError] = useState<string | null>(null)
-  const [pushOn, setPushOn] = useState(false)
-  const [pushError, setPushError] = useState<string | null>(null)
 
   const hasBadInput = FIELDS.some(({ key }) => badInput[key] === true)
   const dirty = hasBadInput || (draft !== null && saved !== null && FIELDS.some(({ key }) => draft[key] !== saved[key]))
@@ -90,25 +92,6 @@ export function TargetsScreen({ targets: port, settings, onLeave }: TargetsScree
       (error) => setPortError(error.message),
     )
   }, [port])
-
-  useEffect(() => {
-    return settings.watchGoogleHealthSync(
-      (on) => {
-        setPushError(null)
-        setPushOn(on)
-      },
-      (error) => setPushError(error.message),
-    )
-  }, [settings])
-
-  async function handlePushToggle(on: boolean) {
-    setPushError(null)
-    try {
-      await settings.setGoogleHealthSync(on)
-    } catch (error) {
-      setPushError(error instanceof Error ? error.message : 'Could not save the Google Health switch.')
-    }
-  }
 
   useEffect(() => {
     if (!dirty) return
@@ -176,24 +159,7 @@ export function TargetsScreen({ targets: port, settings, onLeave }: TargetsScree
           Save
         </Button>
       </form>
-      <div class="stack">
-        <label>
-          <input
-            type="checkbox"
-            role="switch"
-            checked={pushOn}
-            aria-describedby="push-to-google-health-note"
-            onChange={(event) => {
-              // The checkbox follows the port, not the click, so a failed write leaves it as it was.
-              event.currentTarget.checked = pushOn
-              void handlePushToggle(!pushOn)
-            }}
-          />{' '}
-          Push to Google Health
-        </label>
-        <p id="push-to-google-health-note">Pushing needs a Google account linked in the Google Health app.</p>
-        {pushError !== null && <p role="alert">{pushError}</p>}
-      </div>
+      <GoogleHealthSwitch settings={settings} />
     </main>
   )
 }
