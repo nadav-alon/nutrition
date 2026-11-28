@@ -176,7 +176,8 @@ describe('LogScreen confirm step', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Toast/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(onDone).toHaveBeenCalled())
-    const logged = entriesOn(log, TODAY).find((entry) => entry.eatenAt.getTime() === NOW.getTime())
+    const logged = entriesOn(log, TODAY).find((entry) => entry.name === 'Toast' && entry.eatenAt.getTime() === NOW.getTime())
+    expect(logged).toMatchObject({ name: 'Toast' })
     expect(logged).not.toHaveProperty('estimated')
   })
 
